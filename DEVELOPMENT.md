@@ -8,7 +8,9 @@ Phased delivery. Complete each phase before depending on the next. This file is 
 - **Phase 2 complete** — DEMO MODE immersive player, sample playlist, admin long-press stub.
 - **Phase 3 complete** — Room schema + DAOs, `files/media/` cache, atomic ingest, cleanup that never drops the active playlist.
 - **Phase 4 complete** — Offline `ScheduleEvaluator` (`startDate`/`endDate`/`startTime`/`endTime`/`daysOfWeek`); no schedule → play normally; unit tests.
-- **Phases 5–10** — live API, SyncWorker downloads, reporting drain, kiosk hardening, admin, instrumented tests.
+- **Phase 5 complete** — Device registration + API abstraction (`Device`/`Content`/`Reporting`/`Sync` repositories), `X-Device-Id` auth (no Play Services), fixture + mock API, heartbeat outbox.
+- **Phase 6 complete** — `SyncWorker` playlist fetch, `MEDIA_DOWNLOAD` → `MediaCache.ingest`, pin-swap only when every item is READY, free-space reserve, DEMO/cached playback when offline.
+- **Phases 7–10** — reporting drain for playback events, kiosk hardening, admin actions, instrumented tests.
 
 ## Tooling
 
@@ -24,7 +26,7 @@ Phased delivery. Complete each phase before depending on the next. This file is 
 | Retrofit / OkHttp | 2.11.0 / 4.12.0 |
 | minSdk / compileSdk / targetSdk | 24 / 37 / 36 |
 
-Hilt is still deferred. Room uses KSP; `AppContainer` + `Application` hold the database and `MediaCache`.
+Hilt is still deferred. Room uses KSP; `AppContainer` + `Application` hold the database, `MediaCache`, repositories, and Retrofit/fixture API.
 
 ## Phase 1 — Project + diagnostics (done)
 
@@ -50,7 +52,6 @@ Hilt is still deferred. Room uses KSP; `AppContainer` + `Application` hold the d
 - `MediaCache.ingest` wires `AtomicFileStore` (`*.part` → verify → rename)
 - Cleanup prefers deleting `*.part`, then unused complete files; **never** deletes media required by the active playlist
 - DEMO MODE still plays `assets/demo/` offline; seeder pins that playlist in Room so cleanup has a pin
-- `SyncWorker` stays network-stubbed; it only runs cache cleanup
 
 ## Phase 4 — Scheduler (done)
 
@@ -59,24 +60,30 @@ Hilt is still deferred. Room uses KSP; `AppContainer` + `Application` hold the d
 - Empty/out-of-window → idle + poll (`ScheduleEvaluator.POLL_MS`), not a deadlock
 - Unit tests in `app/src/test/.../scheduler/`
 
-## Phase 5 — API + fixtures
+## Phase 5 — API + registration (done)
 
-- Finish `TableAdApi` against a real backend
-- Keep `server/mock_api.py` and `assets/fixtures` in sync
-- Auth header if the operator requires it (not Play Services)
+- `TableAdApi`: register, config, playlist, heartbeat, events
+- Repositories: `DeviceRepository`, `ContentRepository`, `ReportingRepository`, `SyncRepository`
+- Device auth header `X-Device-Id` / `X-Device-Token` (no Play Services)
+- First launch `UNREGISTERED` → `REGISTERED`; Device ID, status, Server URL on admin + diagnostics
+- Heartbeat payload + Room outbox when offline (`Backoff` retries)
+- Placeholder `API_BASE_URL` → `FixtureTableAdApi` (`assets/fixtures`); DEMO MODE needs no server
+- `server/mock_api.py` serves register/config/playlist/heartbeat/media
+- Documented in `API.md`
 
-## Phase 6 — Sync + atomic downloads
+## Phase 6 — Sync + atomic downloads (done)
 
-- `SyncWorker` periodic + on-demand
-- Drain `sync_jobs` (`MEDIA_DOWNLOAD`): HTTP GET → `MediaCache.ingest` → pin swap when every item is READY
-- Free-space reserve; exponential backoff (`Backoff`)
-- Do not play a remote item until `state == READY`
+- `SyncWorker` periodic (15 min) + one-shot on process start / boot
+- Fetch playlist, enqueue `MEDIA_DOWNLOAD`, `MediaCache.ingest`, pin-swap only when every required item is READY at `{id}_v{version}`
+- Free-space reserve (default 200 MB): stop **nonessential** downloads below threshold; essential continue until a critical ~8 MB floor
+- Exponential backoff on failed jobs (`Backoff`) and WorkManager retries
+- Offline: never blank the screen — keep playing cached files or DEMO assets
+- Do not play a remote item until `MediaCache.isReady` (state READY + matching version file)
 
 ## Phase 7 — Reporting queue
 
-- Persist outbox in Room (`playback_events` table already exists)
-- Heartbeat + playback events
-- Drop-oldest when full; **never** join() from the playlist loop
+- Persist outbox in Room (`playback_events` table already exists; heartbeats already drain)
+- Playback events (play/skip/error) — drop-oldest when full; **never** join() from the playlist loop
 
 ## Phase 8 — Boot / kiosk
 

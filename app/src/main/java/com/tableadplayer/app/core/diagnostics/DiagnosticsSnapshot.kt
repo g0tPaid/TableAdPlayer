@@ -15,6 +15,7 @@ data class DiagnosticsSnapshot(
     val storage: StorageDiagnostics,
     val battery: BatteryDiagnostics,
     val network: NetworkDiagnostics,
+    val registration: RegistrationDiagnostics,
     val safeMode: Boolean,
 )
 
@@ -101,4 +102,12 @@ data class NetworkInterfaceInfo(
     val name: String,
     val up: Boolean,
     val addresses: List<String>,
+)
+
+@Serializable
+data class RegistrationDiagnostics(
+    val status: String,
+    val serverUrl: String,
+    val liveApi: Boolean,
+    val lastHeartbeatAt: String? = null,
 )

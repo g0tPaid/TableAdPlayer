@@ -20,9 +20,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.tableadplayer.app.BuildConfig
-import com.tableadplayer.app.core.device.DeviceIdentity
+import com.tableadplayer.app.TableAdPlayerApp
+import com.tableadplayer.app.data.local.DeviceStatus
+import com.tableadplayer.app.data.repo.DeviceRegistration
 import com.tableadplayer.app.ui.diagnostics.DiagnosticsActivity
 import com.tableadplayer.app.ui.player.PlayerActivity
 import com.tableadplayer.app.ui.theme.TableAdTheme
@@ -30,16 +33,25 @@ import com.tableadplayer.app.ui.theme.TableAdTheme
 class AdminActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val identity = DeviceIdentity(applicationContext)
+        val app = application as? TableAdPlayerApp
         setContent {
             TableAdTheme {
-                var deviceId by remember { mutableStateOf("…") }
+                var registration by remember {
+                    mutableStateOf(
+                        DeviceRegistration(
+                            deviceId = "…",
+                            status = DeviceStatus.UNREGISTERED,
+                            serverUrl = BuildConfig.API_BASE_URL,
+                            liveApi = false,
+                        ),
+                    )
+                }
                 LaunchedEffect(Unit) {
-                    deviceId = identity.getOrCreate()
+                    registration = app?.container?.deviceRepository?.registration()
+                        ?: registration
                 }
                 AdminScreen(
-                    deviceId = deviceId,
-                    apiBaseUrl = BuildConfig.API_BASE_URL,
+                    registration = registration,
                     onDiagnostics = {
                         startActivity(Intent(this, DiagnosticsActivity::class.java))
                     },
@@ -55,8 +67,7 @@ class AdminActivity : ComponentActivity() {
 
 @Composable
 fun AdminScreen(
-    deviceId: String,
-    apiBaseUrl: String,
+    registration: DeviceRegistration,
     onDiagnostics: () -> Unit,
     onPlayer: () -> Unit,
 ) {
@@ -71,8 +82,26 @@ fun AdminScreen(
             "Long-press the top-left corner on the player to open this screen.",
             style = MaterialTheme.typography.bodyMedium,
         )
-        Text(deviceId, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
-        Text("API_BASE_URL\n$apiBaseUrl", style = MaterialTheme.typography.bodySmall)
+        Text(
+            registration.deviceId,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontFamily = FontFamily.Monospace,
+        )
+        Text(
+            "Status  ${registration.status}",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            "Server URL\n${registration.serverUrl}",
+            style = MaterialTheme.typography.bodySmall,
+            fontFamily = FontFamily.Monospace,
+        )
+        Text(
+            if (registration.liveApi) "Live API (Retrofit)" else "DEMO / fixture API (no server)",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Text(
             "Lock Task / device-owner is documented, not bypassed. See KIOSK_SETUP.md.",
             style = MaterialTheme.typography.bodySmall,

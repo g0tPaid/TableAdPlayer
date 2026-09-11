@@ -22,5 +22,6 @@ class BootCompletedReceiver : BroadcastReceiver() {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         runCatching { context.startActivity(launch) }
+        runCatching { com.tableadplayer.app.sync.SyncScheduler.enqueue(context) }
     }
 }

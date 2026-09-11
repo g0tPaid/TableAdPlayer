@@ -14,8 +14,11 @@ import android.provider.Settings
 import android.util.DisplayMetrics
 import android.view.WindowManager
 import com.tableadplayer.app.BuildConfig
+import com.tableadplayer.app.TableAdPlayerApp
 import com.tableadplayer.app.core.crash.CrashGuard
 import com.tableadplayer.app.core.device.DeviceIdentity
+import com.tableadplayer.app.data.local.DeviceStatus
+import com.tableadplayer.app.data.remote.ApiOrigin
 import java.net.NetworkInterface
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -43,6 +46,7 @@ class DeviceDiagnosticsCollector(
             storage = storage(),
             battery = battery(),
             network = network(),
+            registration = registration(),
             safeMode = CrashGuard.inSafeMode(context),
         )
     }
@@ -66,6 +70,17 @@ class DeviceDiagnosticsCollector(
         demoMode = BuildConfig.DEMO_MODE,
         apiBaseUrl = BuildConfig.API_BASE_URL,
     )
+
+    private suspend fun registration(): RegistrationDiagnostics {
+        val app = context.applicationContext as? TableAdPlayerApp
+        val stored = app?.container?.deviceRepository?.registration()
+        return RegistrationDiagnostics(
+            status = stored?.status ?: DeviceStatus.UNREGISTERED,
+            serverUrl = stored?.serverUrl ?: BuildConfig.API_BASE_URL,
+            liveApi = stored?.liveApi ?: ApiOrigin.usesLiveNetwork(BuildConfig.API_BASE_URL),
+            lastHeartbeatAt = stored?.lastHeartbeatAt,
+        )
+    }
 
     private fun os() = OsDiagnostics(
         androidVersion = Build.VERSION.RELEASE ?: "unknown",

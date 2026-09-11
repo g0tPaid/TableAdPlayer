@@ -1,13 +1,28 @@
 {
-  "playlistId": "demo-local",
-  "revision": 1,
+  "playlistId": "venue-lobby",
+  "revision": 2,
   "items": [
     {
-      "id": "welcome",
+      "id": "slide-welcome",
       "type": "image",
-      "url": "https://api.example.invalid/media/welcome.png",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "url": "/v1/media/welcome.png",
+      "sha256": "4484e5756d877d1629c9d871c5df3d6a4044715aee575f7cceeff545c3b0a4d5",
       "durationMs": 5000
+    },
+    {
+      "id": "clip-sample",
+      "type": "video",
+      "url": "/v1/media/sample.mp4",
+      "sha256": "26ed763dde6dc2f6eabc77ccb32fc8a2c0e46ff2b1b1817c52832ebdf2f6635e"
+    },
+    {
+      "id": "slide-offline",
+      "type": "image",
+      "url": "/v1/media/offline.png",
+      "sha256": "b2bfbd73f9ad8ba0558d7fa8a3f6028128b2ccc8ece3e277aa4dc79127bc321d",
+      "durationMs": 4000,
+      "startDate": "2020-01-01",
+      "daysOfWeek": "1,2,3,4,5,6,7"
     }
   ]
 }

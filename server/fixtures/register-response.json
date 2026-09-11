@@ -1,0 +1,8 @@
+{
+  "deviceId": "TABLE-abcd1234",
+  "status": "REGISTERED",
+  "token": "mock-device-token",
+  "timezone": "UTC",
+  "heartbeatIntervalSec": 60,
+  "syncIntervalSec": 300
+}

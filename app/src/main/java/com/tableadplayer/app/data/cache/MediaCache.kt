@@ -13,8 +13,8 @@ import java.io.File
 import java.io.InputStream
 
 /**
- * Coordinates Room metadata with app-private files. Sync/network stays in Phase 6;
- * this type is the hook [com.tableadplayer.app.sync.SyncWorker] should call.
+ * Coordinates Room metadata with app-private files. [com.tableadplayer.app.sync.SyncWorker]
+ * downloads through [ingest] and pin-swaps only when [isReady] is true for every item.
  */
 class MediaCache(
     private val db: TableAdDatabase,
@@ -91,6 +91,19 @@ class MediaCache(
         val path = row.localPath ?: return null
         val file = files.resolve(path)
         return if (file.isFile && file.length() > 0L) file else null
+    }
+
+    /**
+     * True when bytes on disk match this row's [MediaEntity.version] (filename
+     * `{id}_v{version}`). A version bump for a new checksum keeps the old file
+     * playable but not pin-swap-ready until ingest finishes.
+     */
+    suspend fun isReady(mediaId: String): Boolean {
+        val row = db.mediaDao().get(mediaId) ?: return false
+        if (row.origin == MediaOrigin.ASSET && row.state == MediaState.READY) return true
+        if (row.state != MediaState.READY) return false
+        val file = playableFile(mediaId) ?: return false
+        return file.name == files.fileName(mediaId, row.version)
     }
 
     suspend fun enqueueDownload(mediaId: String, playlistId: String? = null) {

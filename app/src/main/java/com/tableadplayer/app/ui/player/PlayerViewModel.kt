@@ -4,19 +4,25 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tableadplayer.app.TableAdPlayerApp
-import com.tableadplayer.app.playback.DemoPlaylistLoader
 import com.tableadplayer.app.playback.EngineStatus
 import com.tableadplayer.app.playback.PlaybackContent
 import com.tableadplayer.app.playback.PlaylistEngine
+import com.tableadplayer.app.playback.PlaylistResolver
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class PlayerViewModel(application: Application) : AndroidViewModel(application) {
 
     private val engine = PlaylistEngine(application, viewModelScope)
+    private val reloadMutex = Mutex()
+    private var loadedPlaylistId: String? = null
 
     val content: StateFlow<PlaybackContent> = engine.content
         .stateIn(viewModelScope, SharingStarted.Eagerly, PlaybackContent.Idle)
@@ -25,6 +31,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         .stateIn(viewModelScope, SharingStarted.Eagerly, EngineStatus())
 
     val exoPlayer = engine.player
+
+    private val _demo = MutableStateFlow(true)
+    val demo: StateFlow<Boolean> = _demo.asStateFlow()
 
     init {
         engine.onItemStarted = { item ->
@@ -37,8 +46,24 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
         }
-        val items = runCatching { DemoPlaylistLoader.load(application) }.getOrDefault(emptyList())
-        engine.start(items)
+        reload()
+    }
+
+    fun reload() {
+        viewModelScope.launch {
+            reloadMutex.withLock {
+                val resolved = runCatching { PlaylistResolver.resolve(getApplication()) }
+                    .getOrDefault(
+                        PlaylistResolver.Resolved(emptyList(), demo = true, playlistId = "demo-local"),
+                    )
+                if (resolved.playlistId == loadedPlaylistId && loadedPlaylistId != null) {
+                    return@withLock
+                }
+                loadedPlaylistId = resolved.playlistId
+                _demo.value = resolved.demo
+                engine.start(resolved.items)
+            }
+        }
     }
 
     override fun onCleared() {

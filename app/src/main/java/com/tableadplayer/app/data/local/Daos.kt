@@ -166,6 +166,40 @@ interface PlaybackEventDao {
 
     @Query("SELECT COUNT(*) FROM playback_events WHERE uploadedAt IS NULL")
     suspend fun pendingCount(): Int
+
+    @Query("SELECT COUNT(*) FROM playback_events WHERE uploadedAt IS NULL AND type = :type")
+    suspend fun pendingCountByType(type: String): Int
+
+    @Query(
+        """
+        SELECT * FROM playback_events
+        WHERE uploadedAt IS NULL AND type = :type AND nextAttemptAt <= :now
+        ORDER BY createdAt ASC
+        LIMIT :limit
+        """,
+    )
+    suspend fun pendingByType(type: String, now: Long, limit: Int): List<PlaybackEventEntity>
+
+    @Query(
+        """
+        SELECT id FROM playback_events
+        WHERE uploadedAt IS NULL AND type = :type
+        ORDER BY createdAt ASC
+        LIMIT :count
+        """,
+    )
+    suspend fun oldestPendingIds(type: String, count: Int): List<Long>
+
+    @Query("DELETE FROM playback_events WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<Long>)
+
+    @Query(
+        """
+        UPDATE playback_events SET attempts = :attempts, nextAttemptAt = :nextAttemptAt
+        WHERE id = :id
+        """,
+    )
+    suspend fun scheduleRetry(id: Long, attempts: Int, nextAttemptAt: Long)
 }
 
 @Dao
@@ -201,6 +235,18 @@ interface SyncJobDao {
         updatedAt: Long,
         nextAttemptAt: Long?,
     )
+
+    @Query(
+        """
+        SELECT * FROM sync_jobs
+        WHERE kind = :kind AND mediaId = :mediaId AND status IN ('PENDING', 'RUNNING')
+        LIMIT 1
+        """,
+    )
+    suspend fun findActive(kind: String, mediaId: String): SyncJobEntity?
+
+    @Query("SELECT * FROM sync_jobs WHERE id = :id LIMIT 1")
+    suspend fun get(id: Long): SyncJobEntity?
 }
 
 @Dao
