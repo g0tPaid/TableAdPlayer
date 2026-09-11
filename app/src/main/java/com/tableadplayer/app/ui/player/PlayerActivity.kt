@@ -30,9 +30,11 @@ class PlayerActivity : ComponentActivity() {
             TableAdTheme {
                 val content = viewModel.content.collectAsStateWithLifecycle().value
                 val player = viewModel.exoPlayer.collectAsStateWithLifecycle().value
+                val demo = viewModel.demo.collectAsStateWithLifecycle().value
                 PlayerScreen(
                     content = content,
                     exoPlayer = player,
+                    showDemoBadge = demo,
                     onOpenAdmin = {
                         startActivity(Intent(this, AdminActivity::class.java))
                     },
@@ -49,5 +51,6 @@ class PlayerActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         ImmersiveKiosk.apply(this)
+        viewModel.reload()
     }
 }

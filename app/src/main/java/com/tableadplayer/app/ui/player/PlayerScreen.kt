@@ -30,6 +30,7 @@ fun PlayerScreen(
     content: PlaybackContent,
     exoPlayer: ExoPlayer?,
     onOpenAdmin: () -> Unit,
+    showDemoBadge: Boolean = true,
 ) {
     Box(
         modifier = Modifier
@@ -98,13 +99,15 @@ fun PlayerScreen(
                 },
         )
 
-        Text(
-            text = "DEMO",
-            color = Color.White.copy(alpha = 0.35f),
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(12.dp),
-        )
+        if (showDemoBadge) {
+            Text(
+                text = "DEMO",
+                color = Color.White.copy(alpha = 0.35f),
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(12.dp),
+            )
+        }
     }
 }

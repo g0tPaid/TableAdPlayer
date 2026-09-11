@@ -1,12 +1,12 @@
 # Testing
 
-## Unit (Phase 1–4)
+## Unit (Phase 1–6)
 
 ```bash
 ./gradlew assembleDebug testDebugUnitTest
 ```
 
-Covers device-id formatting, playlist wrap/backoff, sync backoff, media states, atomic file writes, cache cleanup (never drops the active playlist), and the offline scheduler.
+Covers device-id formatting, playlist wrap/backoff, sync backoff, media states, atomic file writes, cache cleanup (never drops the active playlist), the offline scheduler, API origin/fixture registration, device auth headers, pin-swap, free-space reserve, and heartbeat outbox policy.
 
 ## Manual — diagnostics (Phase 1)
 
@@ -31,9 +31,17 @@ Covers device-id formatting, playlist wrap/backoff, sync backoff, media states, 
 
 Unit tests cover windows. On-device: an item with `endDate` in the past is skipped; a playlist with no schedule fields plays as today.
 
-## Later (Phases 5–10)
+## Manual — registration + fixtures (Phase 5)
 
-- Pin swap: kill process mid-download; on restart the incomplete `*.part` is not playable
+1. Default debug APK (placeholder `API_BASE_URL`): launch with **airplane mode**. Admin shows Device ID, **REGISTERED** (fixture path), Server URL `https://api.example.invalid/`. Diagnostics Registration section matches. DEMO player still loops.
+2. `python3 server/mock_api.py` and rebuild with `-PAPI_BASE_URL=http://<lan>:8787/`. First launch goes `UNREGISTERED` → `REGISTERED` against the mock. Heartbeat POSTs appear in the mock log. Airplane mode: heartbeats stay queued; reconnect drains them.
+
+## Manual — sync downloads (Phase 6)
+
+1. Against the mock: after sync, `files/media/` contains `{id}_v{revision}` files; Room active playlist becomes `venue-lobby` only once **all** items verify. Kill the app mid-download: `*.part` is not playable; previous DEMO/cache keeps showing.
+2. Fill the device until free space is under ~200 MB: nonessential downloads skip; DEMO/cached playback continues.
+
+## Later (Phases 7–10)
 - Reporting: airplane mode, play 10 items, reconnect; outbox drains without hitching video
 - CrashGuard: throw 3 times quickly; fourth launch is diagnostics
 - Instrumented Compose tests on an 800×1280 emulator AVD

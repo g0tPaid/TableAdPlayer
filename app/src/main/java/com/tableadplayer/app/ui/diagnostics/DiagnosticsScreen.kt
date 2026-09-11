@@ -162,6 +162,15 @@ private fun DiagnosticsBody(
             }
         }
         item {
+            Section("Registration") {
+                RowItem("Device ID", snapshot.deviceId)
+                RowItem("Status", snapshot.registration.status)
+                RowItem("Server URL", snapshot.registration.serverUrl)
+                RowItem("Live API", snapshot.registration.liveApi.toString())
+                RowItem("Last heartbeat", snapshot.registration.lastHeartbeatAt ?: "—")
+            }
+        }
+        item {
             Section("Android") {
                 RowItem("Android version", snapshot.os.androidVersion)
                 RowItem("API level", snapshot.os.apiLevel.toString())

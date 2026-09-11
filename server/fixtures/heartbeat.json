@@ -1,0 +1,11 @@
+{
+  "deviceId": "TABLE-abcd1234",
+  "appVersion": "0.6.0",
+  "capturedAt": "2026-09-11T16:00:00Z",
+  "playbackItemId": "slide-welcome",
+  "status": "REGISTERED",
+  "playlistId": "venue-lobby",
+  "playlistRevision": 2,
+  "storageFreeBytes": 2147483648,
+  "network": "wifi"
+}

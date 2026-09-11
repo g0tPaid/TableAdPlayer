@@ -10,22 +10,32 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.concurrent.TimeUnit
 
 object ApiFactory {
-    fun create(
-        baseUrl: String = BuildConfig.API_BASE_URL,
+    fun httpClient(
         debug: Boolean = BuildConfig.DEBUG,
-    ): TableAdApi {
+        auth: DeviceAuthInterceptor? = null,
+    ): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = if (debug) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.NONE
         }
-        val client = OkHttpClient.Builder()
+        return OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .apply { if (auth != null) addInterceptor(auth) }
             .addInterceptor(logging)
             .build()
+    }
+
+    fun create(
+        baseUrl: String = BuildConfig.API_BASE_URL,
+        debug: Boolean = BuildConfig.DEBUG,
+        auth: DeviceAuthInterceptor? = null,
+        client: OkHttpClient = httpClient(debug, auth),
+    ): TableAdApi {
         val contentType = "application/json".toMediaType()
+        val normalized = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
         return Retrofit.Builder()
-            .baseUrl(if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/")
+            .baseUrl(normalized)
             .client(client)
             .addConverterFactory(AppJson.compact.asConverterFactory(contentType))
             .build()

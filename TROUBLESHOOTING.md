@@ -23,7 +23,7 @@ Safe mode after repeated crashes. Open diagnostics, confirm storage/media, tap *
 - DEMO assets missing from the APK (`assets/demo/`)
 - ExoPlayer codec missing for a future remote file — engine should skip; file a bug if it hangs > 15 minutes (video cap)
 - Safe mode (above)
-- Cached remote item is not `READY` (Phase 6): engine must skip, not freeze
+- Cached remote item is not `READY` (Phase 6): engine must skip, not freeze; `PlaylistResolver` falls back to DEMO assets if nothing cached is playable
 
 ## Cache grew or leftover `*.part` files
 

@@ -7,10 +7,16 @@ import retrofit2.http.POST
 import retrofit2.http.Query
 
 /**
- * Remote contract for later phases. Paths are versioned under `/v1/` and must be
- * implemented by *your* backend. This client never hard-codes a production CDN.
+ * Remote contract. Paths are versioned under `/v1/` and must be implemented by
+ * *your* backend. This client never hard-codes a production CDN.
+ *
+ * Auth is a device header pair (`X-Device-Id`, optional `X-Device-Token`) — no
+ * Play Services. See [DeviceAuthInterceptor].
  */
 interface TableAdApi {
+    @POST("v1/device/register")
+    suspend fun register(@Body body: RegisterRequestDto): RegisterResponseDto
+
     @GET("v1/device/config")
     suspend fun deviceConfig(@Query("deviceId") deviceId: String): DeviceConfigDto
 
@@ -23,6 +29,28 @@ interface TableAdApi {
     @POST("v1/device/events")
     suspend fun reportEvents(@Body body: EventBatchDto): AckDto
 }
+
+@Serializable
+data class RegisterRequestDto(
+    val deviceId: String,
+    val manufacturer: String? = null,
+    val model: String? = null,
+    val androidVersion: String? = null,
+    val apiLevel: Int? = null,
+    val appVersion: String,
+    val applicationId: String,
+    val demoMode: Boolean = false,
+)
+
+@Serializable
+data class RegisterResponseDto(
+    val deviceId: String,
+    val status: String = "REGISTERED",
+    val token: String? = null,
+    val timezone: String = "UTC",
+    val heartbeatIntervalSec: Int = 60,
+    val syncIntervalSec: Int = 300,
+)
 
 @Serializable
 data class DeviceConfigDto(
@@ -61,6 +89,11 @@ data class HeartbeatDto(
     val appVersion: String,
     val capturedAt: String,
     val playbackItemId: String? = null,
+    val status: String? = null,
+    val playlistId: String? = null,
+    val playlistRevision: Long? = null,
+    val storageFreeBytes: Long? = null,
+    val network: String? = null,
 )
 
 @Serializable
