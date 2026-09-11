@@ -20,6 +20,10 @@ fi
 export ANDROID_HOME="$ROOT"
 export PATH="$ROOT/cmdline-tools/latest/bin:$PATH"
 yes | sdkmanager --licenses >/dev/null || true
-sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+sdkmanager --install "platforms;android-36" "platforms;android-37.0" "build-tools;36.0.0" "platform-tools"
+# AGP looks for platforms/android-37; the SDK package is android-37.0
+if [[ -d "$ROOT/platforms/android-37.0" && ! -e "$ROOT/platforms/android-37" ]]; then
+  ln -s android-37.0 "$ROOT/platforms/android-37"
+fi
 echo "ANDROID_HOME=$ANDROID_HOME"
 echo "Write local.properties: sdk.dir=$ANDROID_HOME"

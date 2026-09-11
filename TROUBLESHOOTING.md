@@ -12,7 +12,7 @@ or `export ANDROID_HOME=...`. Run `./scripts/setup-android-sdk.sh` on Linux if y
 
 ## `assembleDebug` fails on plugin versions
 
-Pins live in `gradle/libs.versions.toml`. AGP 8.13.2 + Gradle 8.13 + Kotlin 2.1.20 is the supported set. AGP 9.x needs a newer Gradle and is intentionally not used yet (see DEVELOPMENT.md).
+Pins live in `gradle/libs.versions.toml`. AGP 9.4.0 + Gradle 9.6.0 + Kotlin 2.2.10 is the supported set. AGP 9 ships Kotlin — do not also apply `org.jetbrains.kotlin.android` or you will get a duplicate `kotlin` extension.
 
 ## App starts diagnostics instead of the player
 

@@ -12,13 +12,13 @@ Phased delivery. Complete each phase before depending on the next. This file is 
 
 | Item | Pin |
 | --- | --- |
-| AGP | 8.13.2 (current 8.x stable; AGP 9.4 needs Gradle 9.6 and still-settling library plugins) |
-| Gradle | 8.13 (wrapper) |
-| Kotlin | 2.1.20 |
+| AGP | 9.4.0 (current stable; built-in Kotlin — do not also apply `org.jetbrains.kotlin.android`) |
+| Gradle | 9.6.0 (wrapper) |
+| Kotlin | 2.2.10 (Compose + serialization plugins) |
 | Compose BOM | 2026.08.00 |
 | Media3 | 1.8.0 |
-| Retrofit / OkHttp | 2.11.2 / 4.12.0 |
-| minSdk / compileSdk / targetSdk | 24 / 36 / 36 |
+| Retrofit / OkHttp | 2.11.0 / 4.12.0 |
+| minSdk / compileSdk / targetSdk | 24 / 37 / 36 |
 
 Hilt is deferred until Room/WorkManager injection pays for the KSP surface. Manual constructors + Application are enough through Phase 2.
 

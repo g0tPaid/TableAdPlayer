@@ -19,8 +19,9 @@ Persistent device id: `TABLE-xxxxxxxx`
 ## Requirements
 
 - JDK 17+ (JDK 21 works)
-- Android SDK Platform 36 + Build-Tools 36.0.0
-- Android Studio or command-line Gradle (wrapper included)
+- Android SDK Platform **37** (`platforms;android-37.0`; symlink to `platforms/android-37` if the CLI names it `37.0`)
+- Build-Tools 36+
+- Android Studio or command-line Gradle 9.6 (wrapper included)
 
 Set `ANDROID_HOME` (or create `local.properties` with `sdk.dir=`).
 

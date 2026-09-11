@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <application>
         <activity
             android:name="com.tableadplayer.app.ui.diagnostics.DiagnosticsActivity"
             android:exported="true"
-            android:label="@string/diagnostics_debug_label">
+            android:label="@string/diagnostics_debug_label"
+            tools:replace="android:exported,android:label">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
