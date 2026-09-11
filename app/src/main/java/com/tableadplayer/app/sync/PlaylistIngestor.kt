@@ -52,11 +52,15 @@ class PlaylistIngestor(
 
             dto.items.forEachIndexed { index, remote ->
                 val previous = db.mediaDao().get(remote.id)
-                val checksumChanged = checksumChanged(previous?.checksum, remote.sha256)
-                val version = when {
-                    checksumChanged -> (previous?.version ?: 1L) + 1L
-                    else -> previous?.version ?: dto.revision.coerceAtLeast(1L)
-                }
+                val checksumChanged = PlaylistIngestPolicy.checksumRequiresNewVersion(
+                    previous?.checksum,
+                    remote.sha256,
+                )
+                val version = PlaylistIngestPolicy.nextVersion(
+                    previousVersion = previous?.version,
+                    playlistRevision = dto.revision,
+                    checksumChanged = checksumChanged,
+                )
                 val fileExists = cache.playableFile(remote.id) != null
                 val currentRevisionReady = !checksumChanged && cache.isReady(remote.id)
                 if (currentRevisionReady) ready += 1
@@ -98,12 +102,14 @@ class PlaylistIngestor(
                 if (schedule != null) {
                     db.scheduleDao().upsert(schedule)
                 }
-                if (!currentRevisionReady) {
-                    val existingJob = db.syncJobDao().findActive(SyncJobKind.MEDIA_DOWNLOAD, remote.id)
-                    if (existingJob == null) {
-                        cache.enqueueDownload(remote.id, dto.playlistId)
-                        enqueued += 1
-                    }
+                val existingJob = db.syncJobDao().findActive(SyncJobKind.MEDIA_DOWNLOAD, remote.id)
+                if (PlaylistIngestPolicy.shouldEnqueueDownload(
+                        currentRevisionReady = currentRevisionReady,
+                        hasActiveJob = existingJob != null,
+                    )
+                ) {
+                    cache.enqueueDownload(remote.id, dto.playlistId)
+                    enqueued += 1
                 }
             }
         }
@@ -135,11 +141,6 @@ class PlaylistIngestor(
             ),
         )
         return true
-    }
-
-    private fun checksumChanged(existing: String?, incoming: String?): Boolean {
-        if (incoming.isNullOrBlank() || existing.isNullOrBlank()) return false
-        return !existing.equals(incoming, ignoreCase = true)
     }
 
     private fun scheduleOf(

@@ -87,10 +87,12 @@ class MediaCache(
     /** Playable file for [mediaId] only when state is READY and the file exists. */
     suspend fun playableFile(mediaId: String): File? {
         val row = db.mediaDao().get(mediaId) ?: return null
-        if (row.state != MediaState.READY) return null
-        val path = row.localPath ?: return null
-        val file = files.resolve(path)
-        return if (file.isFile && file.length() > 0L) file else null
+        val path = row.localPath
+        val file = path?.let { files.resolve(it) }
+        val exists = file?.isFile == true
+        val length = file?.length() ?: 0L
+        if (!MediaReadiness.isPlayable(row.state, path, exists, length)) return null
+        return file
     }
 
     /**
@@ -100,10 +102,14 @@ class MediaCache(
      */
     suspend fun isReady(mediaId: String): Boolean {
         val row = db.mediaDao().get(mediaId) ?: return false
-        if (row.origin == MediaOrigin.ASSET && row.state == MediaState.READY) return true
-        if (row.state != MediaState.READY) return false
-        val file = playableFile(mediaId) ?: return false
-        return file.name == files.fileName(mediaId, row.version)
+        val playable = playableFile(mediaId)
+        return MediaReadiness.isReadyForPinSwap(
+            origin = row.origin,
+            state = row.state,
+            playable = playable != null,
+            fileName = playable?.name,
+            expectedFileName = files.fileName(mediaId, row.version),
+        )
     }
 
     suspend fun enqueueDownload(mediaId: String, playlistId: String? = null) {
@@ -119,7 +125,7 @@ class MediaCache(
             ),
         )
         val row = db.mediaDao().get(mediaId)
-        if (row != null && row.state != MediaState.READY && row.state != MediaState.DOWNLOADING) {
+        if (row != null && MediaReadiness.shouldMarkRemoteOnEnqueue(row.state)) {
             db.mediaDao().setState(mediaId, MediaState.REMOTE, null, now)
         }
     }
@@ -195,11 +201,15 @@ class MediaCache(
         for (part in files.listPartFiles()) {
             val finalName = part.name.removeSuffix(MediaFileStore.PART_SUFFIX)
             val downloadingOwner = all.any { media ->
-                media.id in activeIds &&
-                    media.state == MediaState.DOWNLOADING &&
-                    (media.localPath == null || File(media.localPath).name == finalName)
+                MediaReadiness.downloadingOwnerMatches(
+                    mediaId = media.id,
+                    state = media.state,
+                    localPath = media.localPath,
+                    finalName = finalName,
+                    activeIds = activeIds,
+                )
             }
-            if (finalName in keepNames || downloadingOwner) continue
+            if (MediaReadiness.keepPartFile(finalName, keepNames, downloadingOwner)) continue
             part.delete()
         }
     }

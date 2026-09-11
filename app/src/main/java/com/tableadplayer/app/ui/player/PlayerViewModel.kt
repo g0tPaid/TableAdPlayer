@@ -80,6 +80,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     override fun onCleared() {
+        // Releases ExoPlayer on main (ViewModel teardown). PlaylistEngine.stop is idempotent.
         engine.stop()
         super.onCleared()
     }

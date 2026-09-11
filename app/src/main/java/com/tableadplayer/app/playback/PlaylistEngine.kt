@@ -2,6 +2,8 @@ package com.tableadplayer.app.playback
 
 import android.content.Context
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -14,6 +16,7 @@ import com.tableadplayer.app.scheduler.ScheduleEvaluator
 import java.io.File
 import java.time.ZonedDateTime
 import java.time.ZoneOffset
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -60,6 +63,8 @@ class PlaylistEngine(
 
     private val _player = MutableStateFlow<ExoPlayer?>(null)
     val player: StateFlow<ExoPlayer?> = _player.asStateFlow()
+    private val playerRef = AtomicReference<ExoPlayer?>(null)
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     fun start(items: List<PlaylistItem>) {
         stop()
@@ -167,7 +172,7 @@ class PlaylistEngine(
                 player.playWhenReady = true
                 player.repeatMode = Player.REPEAT_MODE_OFF
                 player.volume = 1f
-                _player.value = player
+                adoptPlayer(player)
                 _content.value = PlaybackContent.Video(item, uri.toString())
                 player.setMediaItem(MediaItem.fromUri(uri))
                 player.prepare()
@@ -245,10 +250,25 @@ class PlaylistEngine(
             }
         }
 
+    private fun adoptPlayer(player: ExoPlayer) {
+        releasePlayer()
+        playerRef.set(player)
+        _player.value = player
+    }
+
+    /**
+     * Idempotent. Safe if [stop] races with a video `finally` block.
+     * ExoPlayer is released on the main thread it was created on.
+     */
     private fun releasePlayer() {
-        _player.value?.let { p ->
-            p.release()
-        }
+        val current = playerRef.getAndSet(null)
         _player.value = null
+        if (current == null) return
+        val release = { current.release() }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            release()
+        } else {
+            mainHandler.post(release)
+        }
     }
 }

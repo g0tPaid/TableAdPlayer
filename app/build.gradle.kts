@@ -20,13 +20,31 @@ android {
         applicationId = "com.tableadplayer.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.7.0"
+        versionCode = 8
+        versionName = "0.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
         buildConfigField("boolean", "DEMO_MODE", "true")
+    }
+
+    signingConfigs {
+        // assembleRelease is installable with the debug keystore until a Play
+        // signing key is provided. Override with RELEASE_STORE_FILE / PASSWORD / ALIAS.
+        create("release") {
+            val customStore = providers.gradleProperty("RELEASE_STORE_FILE").orNull
+            if (!customStore.isNullOrBlank()) {
+                storeFile = file(customStore)
+                storePassword = providers.gradleProperty("RELEASE_STORE_PASSWORD").get()
+                keyAlias = providers.gradleProperty("RELEASE_KEY_ALIAS").get()
+                keyPassword = providers.gradleProperty("RELEASE_KEY_PASSWORD").orElse(
+                    providers.gradleProperty("RELEASE_STORE_PASSWORD"),
+                ).get()
+            } else {
+                initWith(getByName("debug"))
+            }
+        }
     }
 
     buildTypes {
@@ -37,7 +55,9 @@ android {
             buildConfigField("boolean", "DEMO_MODE", "true")
         }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -60,6 +80,15 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/LICENSE.md"
+            excludes += "/META-INF/LICENSE-notice.md"
+        }
+    }
+
+    testOptions {
+        animationsDisabled = true
+        unitTests {
+            isReturnDefaultValues = true
         }
     }
 }
@@ -106,4 +135,13 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
+
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.androidx.espresso.core)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

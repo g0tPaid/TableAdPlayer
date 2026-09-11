@@ -13,7 +13,7 @@ Phased delivery. Complete each phase before depending on the next. This file is 
 - **Phase 7 complete** — Playback events (play/skip/error/completed) persist in Room via a non-blocking `ReportingQueue`; drain to `POST /v1/device/events` with heartbeat-style backoff. Reporting failures never join the playlist loop. Offline outbox + drain when online (`ReportingWorker` / connectivity).
 - **Phase 8 complete** — `BOOT_COMPLETED` starts cached/DEMO playback immediately; sync is background. `PlayerWatchdogService` (mediaPlayback FGS) for OEM boot reliability. `Watchdog` + `CrashGuard` stop rapid restart loops (3 in 2 minutes → diagnostics). OEM caveats in `KIOSK_SETUP.md`. No lock-screen bypass.
 - **Phase 9 complete** — Hidden admin (long-press): Device / Player / Sync / Diagnostics / Controls — sync now, pending/failed downloads, export bundle, restart player/app, clear cache (keeps active playlist), reload playlist, brightness, Exit Lock Task only if DPC permits. Large targets, dark UI for 800×1280 portrait.
-- **Phase 10 leftover** — instrumented player skip tests, mock API contract tests, R8 keep rules for release.
+- **Phase 10 complete** — Sync/MediaCache/DeviceRepository unit tests, mock API contract tests (JVM + Python + smoke script), androidTest stubs, R8 keep rules, `assembleRelease` (debug-keystore).
 
 ## Tooling
 
@@ -106,16 +106,23 @@ Hilt is still deferred. Room uses KSP; `AppContainer` + `Application` hold the d
 - Actions: sync now, pending/failed downloads, export service bundle, restart player, restart app, clear cache (active playlist protected), reload playlist, brightness, Exit Lock Task **only** if `isInLockTaskMode` && DPC `isLockTaskPermitted`
 - Touch targets ≥ 64 dp; dark kiosk theme; 800×1280 portrait
 
-## Phase 10 — Tests + mock server polish (leftover)
+## Phase 10 — Tests + R8 (done)
 
-- Instrumented player skip tests
-- Mock API contract tests
-- Enable R8 for release with serialization keep rules
+- Unit tests for SyncCoordinator / download job / ingest / MediaCache readiness / DeviceRepository registration
+- Mock API contract: JVM fixture+Retrofit tests, `server/test_mock_api.py`, `scripts/smoke-mock-api.sh`
+- `androidTest` stubs for PlayerActivity, AdminActivity, in-memory Room, Compose idle chrome (`assembleDebugAndroidTest`)
+- Release `isMinifyEnabled` + `isShrinkResources` with keep rules for Retrofit, Room, kotlinx.serialization, Media3, WorkManager
+- `assembleRelease` signs with the debug keystore unless `RELEASE_STORE_FILE` is set
+- ExoPlayer release is idempotent on main; `PlayerView` unbinds in `onRelease`
 
 ## Local commands
 
 ```bash
 ./gradlew assembleDebug
 ./gradlew testDebugUnitTest
+./gradlew assembleRelease
+./gradlew assembleDebugAndroidTest
 ./gradlew lint
+python3 -m unittest discover -s server -p 'test_*.py'
+./scripts/smoke-mock-api.sh
 ```

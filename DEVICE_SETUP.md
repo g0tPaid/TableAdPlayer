@@ -4,8 +4,18 @@ Target: ~8" portrait Android tablet, ~800×1280, no Google Play Services require
 
 ## 1. Install
 
+Debug:
+
 ```bash
 adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb shell am start -n com.tableadplayer.app.debug/com.tableadplayer.app.ui.player.PlayerActivity
+```
+
+Release (R8, still DEMO MODE, debug-keystore unless you pass `RELEASE_STORE_FILE`):
+
+```bash
+adb install -r app/build/outputs/apk/release/app-release.apk
+adb shell am start -n com.tableadplayer.app/com.tableadplayer.app.ui.player.PlayerActivity
 ```
 
 Debug `applicationId` is `com.tableadplayer.app.debug`. Release is `com.tableadplayer.app`.
