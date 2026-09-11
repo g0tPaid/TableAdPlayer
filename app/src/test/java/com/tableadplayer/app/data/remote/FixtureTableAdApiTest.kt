@@ -21,7 +21,7 @@ class FixtureTableAdApiTest {
         """.trimIndent(),
     )
 
-    private val api = FixtureTableAdApi { name -> fixtures.getValue(name) }
+    private val api = FixtureTableAdApi(readFixture = { name -> fixtures.getValue(name) })
 
     @Test
     fun registerEchoesDeviceIdAndMarksRegistered() = runTest {

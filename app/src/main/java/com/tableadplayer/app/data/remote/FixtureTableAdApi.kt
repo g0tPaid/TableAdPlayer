@@ -41,9 +41,11 @@ class FixtureTableAdApi(
         const val PLAYLIST = "playlist.json"
 
         fun fromAssets(assets: AssetManager): FixtureTableAdApi {
-            return FixtureTableAdApi { name ->
-                assets.open("fixtures/$name").bufferedReader().use { it.readText() }
-            }
+            return FixtureTableAdApi(
+                readFixture = { name ->
+                    assets.open("fixtures/$name").bufferedReader().use { it.readText() }
+                },
+            )
         }
     }
 }
