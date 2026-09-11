@@ -16,4 +16,8 @@
     <string name="open_player">Back to player</string>
     <string name="demo_mode">DEMO MODE</string>
     <string name="lock_task_note">Lock Task / device-owner is documented, not bypassed. See KIOSK_SETUP.md.</string>
+    <string name="watchdog_channel">Player keep-alive</string>
+    <string name="watchdog_notification">Playing cached playlist. Sync runs in the background.</string>
+    <string name="admin_sync_now">Sync now</string>
+    <string name="admin_clear_cache">Clear cache (keep active playlist)</string>
 </resources>

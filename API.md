@@ -23,7 +23,7 @@ All JSON, UTF-8. Times in UTC ISO-8601.
 | GET | `/v1/playlists/current?deviceId=` | Current playlist revision + media list |
 | GET | `/v1/media/{file}` | Optional static media (mock server). Production may use absolute CDN URLs. |
 | POST | `/v1/device/heartbeat` | Liveness; queued locally when offline; must not be on the playback critical path |
-| POST | `/v1/device/events` | Batched playback/skip/error events (Phase 7 drain) |
+| POST | `/v1/device/events` | Batched playback/skip/error/completed events (Phase 7 drain) |
 
 See Kotlin DTOs in `app/src/main/java/com/tableadplayer/app/data/remote/TableAdApi.kt` and fixtures:
 
@@ -85,6 +85,24 @@ Posted by `ReportingRepository`. If the call fails, the payload is kept in Room 
 
 Ack: `{ "ok": true }`.
 
+## Playback events
+
+Posted by `ReportingRepository.drainPlaybackEvents` in batches (`EventBatchDto`). The playlist engine only `offer`s to `ReportingQueue` (drop-oldest at 512) and never waits on this call. Offline rows stay in Room (`type` = `play` / `skip` / `error` / `completed`) until a later drain; API failures use the same `Backoff` as heartbeats. Oldest playback events are dropped when the outbox exceeds 512. Heartbeat rows are **not** mixed into this batch.
+
+```json
+{
+  "deviceId": "TABLE-abcd1234",
+  "events": [
+    {"type": "play", "itemId": "slide-welcome", "at": "2026-09-11T16:00:01Z"},
+    {"type": "completed", "itemId": "slide-welcome", "at": "2026-09-11T16:00:06Z"},
+    {"type": "error", "itemId": "slide-missing", "at": "2026-09-11T16:00:06Z", "detail": "unreadable"},
+    {"type": "skip", "itemId": "slide-missing", "at": "2026-09-11T16:00:06Z", "detail": "unreadable"}
+  ]
+}
+```
+
+Ack: `{ "ok": true }`. Unknown event types should be ignored by the server (`ok: true` still drains the batch).
+
 ## Media items
 
 Each playlist item should include:
@@ -116,7 +134,7 @@ Do not embed third-party private API keys.
 | --- | --- |
 | `DeviceRepository` | `UNREGISTERED` → `REGISTERED`, config, auth store |
 | `ContentRepository` | Current playlist |
-| `ReportingRepository` | Heartbeat enqueue + drain |
+| `ReportingRepository` | Heartbeat + playback-event enqueue + drain |
 | `SyncRepository` | `SyncCoordinator.sync()` |
 
 Live origin → Retrofit `TableAdApi`. Placeholder origin → `FixtureTableAdApi`.
@@ -130,6 +148,7 @@ python3 server/mock_api.py
 # GET  http://127.0.0.1:8787/v1/playlists/current
 # GET  http://127.0.0.1:8787/v1/media/welcome.png
 # POST http://127.0.0.1:8787/v1/device/heartbeat
+# POST http://127.0.0.1:8787/v1/device/events
 ```
 
 Point a **debug** build at `http://10.0.2.2:8787/` (emulator) or the LAN IP (device). Debug `network_security_config` allows cleartext; release does not.

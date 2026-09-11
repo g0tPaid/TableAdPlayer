@@ -127,20 +127,27 @@ class MediaCache(
     /**
      * Deletes leftover `*.part` files first, then unused complete media.
      * Never removes files required by the active playlist.
+     *
+     * @param maxReadyBytesOverride when set (e.g. `0` for admin "clear cache"),
+     *   unused READY files are deleted down to that budget. Active-playlist
+     *   media is still protected.
      */
-    suspend fun cleanup() {
+    suspend fun cleanup(maxReadyBytesOverride: Long? = null) {
         val activeIds = db.playlistItemDao().mediaIdsForActivePlaylist().toSet()
         val all = db.mediaDao().getAll()
         discardStalePartFiles(all, activeIds)
 
-        val maxBytes = db.appConfigDao().getValue(AppConfigKeys.CACHE_MAX_BYTES)
-            ?.toLongOrNull()
+        val maxBytes = maxReadyBytesOverride
+            ?: db.appConfigDao().getValue(AppConfigKeys.CACHE_MAX_BYTES)
+                ?.toLongOrNull()
             ?: MediaCleanupPolicy.DEFAULT_MAX_READY_BYTES
+        val unusedTtlMs = if (maxReadyBytesOverride != null) 0L else MediaCleanupPolicy.DEFAULT_UNUSED_TTL_MS
         val plan = MediaCleanupPolicy.plan(
             media = all.map { it.toCleanupSnapshot() },
             activePlaylistMediaIds = activeIds,
             nowMs = clock(),
             maxReadyBytes = maxBytes,
+            unusedTtlMs = unusedTtlMs,
         )
         val referenced = db.playlistItemDao().allReferencedMediaIds().toSet()
         for (id in plan.mediaIdsToDelete) {

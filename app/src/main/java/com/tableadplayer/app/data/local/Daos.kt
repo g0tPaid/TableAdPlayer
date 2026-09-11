@@ -200,6 +200,29 @@ interface PlaybackEventDao {
         """,
     )
     suspend fun scheduleRetry(id: Long, attempts: Int, nextAttemptAt: Long)
+
+    @Query(
+        """
+        SELECT * FROM playback_events
+        WHERE uploadedAt IS NULL AND type != :excludedType AND nextAttemptAt <= :now
+        ORDER BY createdAt ASC
+        LIMIT :limit
+        """,
+    )
+    suspend fun pendingExcludingType(excludedType: String, now: Long, limit: Int): List<PlaybackEventEntity>
+
+    @Query("SELECT COUNT(*) FROM playback_events WHERE uploadedAt IS NULL AND type != :excludedType")
+    suspend fun pendingCountExcludingType(excludedType: String): Int
+
+    @Query(
+        """
+        SELECT id FROM playback_events
+        WHERE uploadedAt IS NULL AND type != :excludedType
+        ORDER BY createdAt ASC
+        LIMIT :count
+        """,
+    )
+    suspend fun oldestPendingIdsExcludingType(excludedType: String, count: Int): List<Long>
 }
 
 @Dao
@@ -247,6 +270,22 @@ interface SyncJobDao {
 
     @Query("SELECT * FROM sync_jobs WHERE id = :id LIMIT 1")
     suspend fun get(id: Long): SyncJobEntity?
+
+    @Query("SELECT COUNT(*) FROM sync_jobs WHERE kind = :kind AND status = :status")
+    suspend fun countByKindAndStatus(kind: String, status: String): Int
+
+    @Query("SELECT COUNT(*) FROM sync_jobs WHERE status = :status")
+    suspend fun countByStatus(status: String): Int
+
+    @Query(
+        """
+        SELECT lastError FROM sync_jobs
+        WHERE lastError IS NOT NULL AND lastError != ''
+        ORDER BY updatedAt DESC
+        LIMIT :limit
+        """,
+    )
+    suspend fun recentErrors(limit: Int): List<String>
 }
 
 @Dao

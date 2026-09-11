@@ -14,7 +14,10 @@ This repository does not depend on any other product repo. A public site may be 
 | 4 Offline scheduler | **Complete** |
 | 5 Device registration + API abstraction | **Complete** |
 | 6 SyncWorker downloads + pin-swap | **Complete** |
-| 7–10 Reporting drain, kiosk, admin, instrumented tests | Scaffolded — see [DEVELOPMENT.md](DEVELOPMENT.md) |
+| 7 Reporting drain (play/skip/error/completed), never blocks playlist | **Complete** |
+| 8 Boot FGS + Watchdog / CrashGuard, OEM docs | **Complete** |
+| 9 Admin service menu (Device / Player / Sync / Diagnostics / Controls) | **Complete** |
+| 10 Instrumented tests, mock contract tests, R8 | Leftover — see [DEVELOPMENT.md](DEVELOPMENT.md) |
 
 `applicationId`: `com.tableadplayer.app`  
 Debug APK: `app/build/outputs/apk/debug/app-debug.apk`  
@@ -46,7 +49,7 @@ Debug builds install three launcher entries:
 - **TableAd Diagnostics** — device diagnostics
 - **TableAd Debug** — jump menu (`adb shell am start -a com.tableadplayer.app.DEBUG -n com.tableadplayer.app.debug/com.tableadplayer.app.debug.DebugEntryActivity`)
 
-Release has a single player launcher. Long-press the **top-left** corner of the player to open the admin shell (diagnostics lives there).
+Release has a single player launcher. Long-press the **top-left** corner of the player to open the admin service menu (sync now, downloads, export, restart, clear cache).
 
 ## Build
 

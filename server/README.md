@@ -1,6 +1,6 @@
 # Mock API
 
-Stdlib HTTP server that serves the Phase 5–6 contract: register, config, current playlist, heartbeat, events, and fixture media under `/v1/media/`.
+Stdlib HTTP server that serves the Phase 5–7 contract: register, config, current playlist, heartbeat, events, and fixture media under `/v1/media/`.
 
 ```bash
 python3 server/mock_api.py

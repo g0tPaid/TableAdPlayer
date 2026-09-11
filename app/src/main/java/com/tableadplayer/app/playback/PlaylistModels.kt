@@ -61,3 +61,9 @@ data class EngineStatus(
     val lastError: String? = null,
     val waitingRetry: Boolean = false,
 )
+
+sealed class PlayOutcome {
+    data object Played : PlayOutcome()
+    data class Failed(val reason: String) : PlayOutcome()
+    val ok: Boolean get() = this is Played
+}

@@ -8,14 +8,17 @@ import kotlin.system.exitProcess
  * Prevents a crash loop from pinning a kiosk in a rapid restart cycle.
  * After [THRESHOLD] uncaught exceptions within [WINDOW_MS], the next launch
  * opens diagnostics (safe mode) instead of the player.
+ *
+ * Service/boot restart storms are handled by [Watchdog] using the same
+ * [WatchdogPolicy] window and threshold.
  */
 object CrashGuard {
-    private const val PREFS = "crash_guard"
+    internal const val PREFS = "crash_guard"
     private const val KEY_LAST_CRASH_AT = "last_crash_at"
     private const val KEY_CRASH_COUNT = "crash_count"
-    private const val KEY_SAFE_MODE = "safe_mode"
-    const val THRESHOLD = 3
-    const val WINDOW_MS = 120_000L
+    internal const val KEY_SAFE_MODE = "safe_mode"
+    const val THRESHOLD = WatchdogPolicy.THRESHOLD
+    const val WINDOW_MS = WatchdogPolicy.WINDOW_MS
 
     fun install(app: Application) {
         val previous = Thread.getDefaultUncaughtExceptionHandler()
@@ -44,6 +47,12 @@ object CrashGuard {
             .apply()
     }
 
+    fun enterSafeMode(context: Context) {
+        prefs(context).edit()
+            .putBoolean(KEY_SAFE_MODE, true)
+            .commit()
+    }
+
     private fun recordCrash(context: Context) {
         val prefs = prefs(context)
         val now = System.currentTimeMillis()
@@ -56,7 +65,7 @@ object CrashGuard {
             .commit()
     }
 
-    private fun decayIfWindowExpired(context: Context) {
+    internal fun decayIfWindowExpired(context: Context) {
         val prefs = prefs(context)
         val last = prefs.getLong(KEY_LAST_CRASH_AT, 0L)
         if (last == 0L) return
@@ -66,5 +75,13 @@ object CrashGuard {
     }
 
     private fun prefs(context: Context) =
-        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        storageContext(context).getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    private fun storageContext(context: Context): Context {
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            context.applicationContext.createDeviceProtectedStorageContext()
+        } else {
+            context.applicationContext
+        }
+    }
 }

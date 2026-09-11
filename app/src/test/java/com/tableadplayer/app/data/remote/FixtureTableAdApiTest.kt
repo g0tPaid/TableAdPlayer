@@ -46,5 +46,15 @@ class FixtureTableAdApiTest {
         assertEquals("venue-lobby", playlist.playlistId)
         assertEquals(2L, playlist.revision)
         assertTrue(api.heartbeat(HeartbeatDto("TABLE-ffff0000", "0.6.0", "2026-01-01T00:00:00Z")).ok)
+        assertTrue(
+            api.reportEvents(
+                EventBatchDto(
+                    deviceId = "TABLE-ffff0000",
+                    events = listOf(
+                        PlayerEventDto("play", "slide-welcome", "2026-01-01T00:00:00Z"),
+                    ),
+                ),
+            ).ok,
+        )
     }
 }

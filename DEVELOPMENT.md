@@ -10,7 +10,10 @@ Phased delivery. Complete each phase before depending on the next. This file is 
 - **Phase 4 complete** — Offline `ScheduleEvaluator` (`startDate`/`endDate`/`startTime`/`endTime`/`daysOfWeek`); no schedule → play normally; unit tests.
 - **Phase 5 complete** — Device registration + API abstraction (`Device`/`Content`/`Reporting`/`Sync` repositories), `X-Device-Id` auth (no Play Services), fixture + mock API, heartbeat outbox.
 - **Phase 6 complete** — `SyncWorker` playlist fetch, `MEDIA_DOWNLOAD` → `MediaCache.ingest`, pin-swap only when every item is READY, free-space reserve, DEMO/cached playback when offline.
-- **Phases 7–10** — reporting drain for playback events, kiosk hardening, admin actions, instrumented tests.
+- **Phase 7 complete** — Playback events (play/skip/error/completed) persist in Room via a non-blocking `ReportingQueue`; drain to `POST /v1/device/events` with heartbeat-style backoff. Reporting failures never join the playlist loop. Offline outbox + drain when online (`ReportingWorker` / connectivity).
+- **Phase 8 complete** — `BOOT_COMPLETED` starts cached/DEMO playback immediately; sync is background. `PlayerWatchdogService` (mediaPlayback FGS) for OEM boot reliability. `Watchdog` + `CrashGuard` stop rapid restart loops (3 in 2 minutes → diagnostics). OEM caveats in `KIOSK_SETUP.md`. No lock-screen bypass.
+- **Phase 9 complete** — Hidden admin (long-press): Device / Player / Sync / Diagnostics / Controls — sync now, pending/failed downloads, export bundle, restart player/app, clear cache (keeps active playlist), reload playlist, brightness, Exit Lock Task only if DPC permits. Large targets, dark UI for 800×1280 portrait.
+- **Phase 10 leftover** — instrumented player skip tests, mock API contract tests, R8 keep rules for release.
 
 ## Tooling
 
@@ -80,22 +83,30 @@ Hilt is still deferred. Room uses KSP; `AppContainer` + `Application` hold the d
 - Offline: never blank the screen — keep playing cached files or DEMO assets
 - Do not play a remote item until `MediaCache.isReady` (state READY + matching version file)
 
-## Phase 7 — Reporting queue
+## Phase 7 — Reporting queue (done)
 
-- Persist outbox in Room (`playback_events` table already exists; heartbeats already drain)
-- Playback events (play/skip/error) — drop-oldest when full; **never** join() from the playlist loop
+- `ReportingQueue.offer` is non-blocking (drop-oldest at 512); playlist loop never `join()`s drain
+- `ReportingPump` persists to Room `playback_events`; types `play` / `skip` / `error` / `completed` (heartbeats stay a separate drain)
+- `ReportingRepository.drainPlaybackEvents` → `POST /v1/device/events`; API failures schedule `Backoff` retries and **do not throw** to callers
+- Connectivity + `ReportingWorker` drain when online; `SyncCoordinator` also drains (isolated with `runCatching`)
+- Unit tests: queue capacity, drain success/failure isolation, poison heartbeat rows, emitIsolated
 
-## Phase 8 — Boot / kiosk
+## Phase 8 — Boot / kiosk (done)
 
-- Document device-owner + Lock Task (`KIOSK_SETUP.md`)
-- Foreground service if OEM blocks boot activities
-- Do not use reflection/hacks to dismiss the lock screen
+- `BootCompletedReceiver` (`BOOT_COMPLETED`, `LOCKED_BOOT_COMPLETED`, `USER_UNLOCKED`): start cached/DEMO player immediately, `SyncScheduler.enqueueNow` in the background
+- `PlayerWatchdogService` — `FOREGROUND_SERVICE_MEDIA_PLAYBACK` for OEM boot reliability (not a Keyguard bypass)
+- Room/API deferred until user unlock (credential-encrypted storage)
+- `WatchdogPolicy`: 3 watchdog restarts in 2 minutes → safe mode; 5 s debounce for sticky redelivery
+- Device-owner + Lock Task remains documented (`KIOSK_SETUP.md`); no reflection / accessibility overlays
 
-## Phase 9 — Admin menu
+## Phase 9 — Admin menu (done)
 
-- PIN or hardware long-press already in place — add: sync now, brightness, playlist pin, safe reboot, exit Lock Task **only** if device-owner APIs allow it
+- Long-press top-left still opens admin (no PIN required)
+- Sections: Device, Player, Sync, Diagnostics, Controls
+- Actions: sync now, pending/failed downloads, export service bundle, restart player, restart app, clear cache (active playlist protected), reload playlist, brightness, Exit Lock Task **only** if `isInLockTaskMode` && DPC `isLockTaskPermitted`
+- Touch targets ≥ 64 dp; dark kiosk theme; 800×1280 portrait
 
-## Phase 10 — Tests + mock server polish
+## Phase 10 — Tests + mock server polish (leftover)
 
 - Instrumented player skip tests
 - Mock API contract tests

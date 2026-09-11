@@ -18,7 +18,7 @@ The player starts in DEMO MODE (bundled assets). Confirm:
 - Screen stays on
 - Images change on a timer; the sample video plays to the end
 - A missing slide is skipped (no freeze)
-- Long-press **top-left** opens Admin → Device diagnostics
+- Long-press **top-left** opens Admin (Device / Player / Sync / Diagnostics / Controls)
 
 ## 3. Diagnostics export
 
@@ -40,4 +40,4 @@ Rebuild with `-PAPI_BASE_URL=...` or set `API_BASE_URL` in `gradle.properties`. 
 
 ## 6. Boot
 
-`RECEIVE_BOOT_COMPLETED` is registered. Whether the activity actually appears after reboot depends on the OEM. Device-owner Lock Task is the supported 24/7 path.
+`RECEIVE_BOOT_COMPLETED` is registered. The player starts from the **cached or DEMO** playlist immediately; sync is background. Whether the activity actually appears after reboot depends on the OEM — `PlayerWatchdogService` is the foreground keep-alive. Device-owner Lock Task is the supported 24/7 path (`KIOSK_SETUP.md`).

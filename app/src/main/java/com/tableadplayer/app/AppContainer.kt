@@ -16,6 +16,7 @@ import com.tableadplayer.app.data.repo.ContentRepository
 import com.tableadplayer.app.data.repo.DeviceRepository
 import com.tableadplayer.app.data.repo.ReportingRepository
 import com.tableadplayer.app.data.repo.SyncRepository
+import com.tableadplayer.app.reporting.ReportingQueue
 import com.tableadplayer.app.sync.FreeSpaceGuard
 import com.tableadplayer.app.sync.MediaDownloader
 import com.tableadplayer.app.sync.PlaylistIngestor
@@ -68,6 +69,8 @@ class AppContainer(context: Context) {
         db = database,
         devices = deviceRepository,
     )
+
+    val reportingQueue: ReportingQueue = ReportingQueue()
 
     private val freeSpace = FreeSpaceGuard { appContext.filesDir.usableSpace }
 

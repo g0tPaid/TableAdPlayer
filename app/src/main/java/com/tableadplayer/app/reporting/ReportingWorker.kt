@@ -1,4 +1,4 @@
-package com.tableadplayer.app.sync
+package com.tableadplayer.app.reporting
 
 import android.content.Context
 import androidx.work.CoroutineWorker
@@ -6,11 +6,10 @@ import androidx.work.WorkerParameters
 import com.tableadplayer.app.TableAdPlayerApp
 
 /**
- * Periodic / on-demand sync. Fetches playlist, drains MEDIA_DOWNLOAD through
- * [com.tableadplayer.app.data.cache.MediaCache.ingest], pin-swaps only when every
- * required item is READY. Offline devices keep playing cached or DEMO media.
+ * Drains heartbeat + playback-event outboxes. Failures stay queued; this
+ * worker never interacts with [com.tableadplayer.app.playback.PlaylistEngine].
  */
-class SyncWorker(
+class ReportingWorker(
     context: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(context, params) {
@@ -18,9 +17,9 @@ class SyncWorker(
         val app = applicationContext as? TableAdPlayerApp ?: return Result.success()
         app.initRuntime()
         if (!app.isRuntimeReady()) return Result.retry()
-        val outcome = runCatching { app.container.syncRepository.sync() }
-            .getOrElse { return Result.retry() }
-        return if (outcome.error != null && !outcome.registered && runAttemptCount < 3) {
+        val outcome = runCatching { app.container.reportingRepository.drainAll() }
+            .getOrElse { return if (runAttemptCount < 3) Result.retry() else Result.success() }
+        return if (outcome.failed > 0 && runAttemptCount < 3) {
             Result.retry()
         } else {
             Result.success()

@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tableadplayer.app.core.crash.CrashGuard
+import com.tableadplayer.app.core.crash.Watchdog
 import com.tableadplayer.app.core.diagnostics.DeviceDiagnosticsCollector
 import com.tableadplayer.app.core.diagnostics.DiagnosticsExporter
 import com.tableadplayer.app.core.diagnostics.DiagnosticsSnapshot
@@ -78,7 +79,7 @@ class DiagnosticsViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun retryPlayer() {
-        CrashGuard.clearSafeMode(getApplication())
+        Watchdog.clear(getApplication())
         refresh()
     }
 

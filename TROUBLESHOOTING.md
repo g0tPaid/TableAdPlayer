@@ -43,7 +43,13 @@ Expected without location permission on modern Android. Connectivity (`wifi` tru
 
 ## Boot does not resume playback
 
-See `KIOSK_SETUP.md`. This is an OEM/DPC limitation, not a missing `<receiver>`.
+See `KIOSK_SETUP.md`. This is an OEM/DPC limitation, not a missing `<receiver>`. Check:
+
+1. The persistent “Playing cached playlist…” notification — tap it
+2. OEM autostart / battery restrictions (Xiaomi, Huawei, Oppo, Vivo, Samsung)
+3. Safe mode after a crash loop — Diagnostics → Retry player
+
+Reporting failures (airplane mode, dead API) must never pause the playlist. If video hitching appeared while events were queued, file a bug against `ReportingQueue` / `PlaylistEngine` isolation.
 
 ## Cleartext HTTP to a LAN mock fails on release builds
 

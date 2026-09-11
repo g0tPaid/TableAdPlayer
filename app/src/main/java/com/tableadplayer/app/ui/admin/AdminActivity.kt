@@ -1,121 +1,105 @@
 package com.tableadplayer.app.ui.admin
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.unit.dp
-import com.tableadplayer.app.BuildConfig
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tableadplayer.app.TableAdPlayerApp
-import com.tableadplayer.app.data.local.DeviceStatus
-import com.tableadplayer.app.data.repo.DeviceRegistration
+import com.tableadplayer.app.kiosk.LockTaskGate
 import com.tableadplayer.app.ui.diagnostics.DiagnosticsActivity
 import com.tableadplayer.app.ui.player.PlayerActivity
 import com.tableadplayer.app.ui.theme.TableAdTheme
+import java.io.File
 
 class AdminActivity : ComponentActivity() {
+
+    private val viewModel: AdminViewModel by viewModels()
+    private var pendingExport: File? = null
+
+    private val createDocument = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri: Uri? ->
+        val file = pendingExport
+        pendingExport = null
+        if (uri == null || file == null) return@registerForActivityResult
+        contentResolver.openOutputStream(uri)?.use { out ->
+            file.inputStream().use { it.copyTo(out) }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val app = application as? TableAdPlayerApp
+        (application as? TableAdPlayerApp)?.initRuntime()
         setContent {
             TableAdTheme {
-                var registration by remember {
-                    mutableStateOf(
-                        DeviceRegistration(
-                            deviceId = "…",
-                            status = DeviceStatus.UNREGISTERED,
-                            serverUrl = BuildConfig.API_BASE_URL,
-                            liveApi = false,
-                        ),
-                    )
-                }
-                LaunchedEffect(Unit) {
-                    registration = app?.container?.deviceRepository?.registration()
-                        ?: registration
-                }
+                val state = viewModel.state.collectAsStateWithLifecycle().value
+                applyBrightness(state.brightness)
                 AdminScreen(
-                    registration = registration,
+                    state = state,
+                    canExitLockTask = LockTaskGate.canRequestStopLockTask(this),
+                    onRefresh = viewModel::refresh,
+                    onSyncNow = viewModel::syncNow,
+                    onClearCache = viewModel::clearCache,
+                    onBrightness = viewModel::setBrightness,
                     onDiagnostics = {
                         startActivity(Intent(this, DiagnosticsActivity::class.java))
                     },
-                    onPlayer = {
+                    onExport = {
+                        viewModel.exportServiceBundle { file ->
+                            pendingExport = file
+                            createDocument.launch(file.name)
+                        }
+                    },
+                    onReloadPlaylist = {
+                        startActivity(
+                            Intent(this, PlayerActivity::class.java)
+                                .putExtra(PlayerActivity.EXTRA_FORCE_RELOAD, true),
+                        )
+                        finish()
+                    },
+                    onRestartPlayer = {
+                        startActivity(
+                            Intent(this, PlayerActivity::class.java)
+                                .putExtra(PlayerActivity.EXTRA_FORCE_RELOAD, true)
+                                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP),
+                        )
+                        finish()
+                    },
+                    onRestartApp = { restartApp() },
+                    onExitLockTask = { LockTaskGate.stopLockTaskIfPermitted(this) },
+                    onBackToPlayer = {
                         startActivity(Intent(this, PlayerActivity::class.java))
                         finish()
                     },
+                    onMessageShown = viewModel::consumeMessage,
                 )
             }
         }
     }
-}
 
-@Composable
-fun AdminScreen(
-    registration: DeviceRegistration,
-    onDiagnostics: () -> Unit,
-    onPlayer: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text("Admin shell", style = MaterialTheme.typography.headlineMedium)
-        Text(
-            "Long-press the top-left corner on the player to open this screen.",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Text(
-            registration.deviceId,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.primary,
-            fontFamily = FontFamily.Monospace,
-        )
-        Text(
-            "Status  ${registration.status}",
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text(
-            "Server URL\n${registration.serverUrl}",
-            style = MaterialTheme.typography.bodySmall,
-            fontFamily = FontFamily.Monospace,
-        )
-        Text(
-            if (registration.liveApi) "Live API (Retrofit)" else "DEMO / fixture API (no server)",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            "Lock Task / device-owner is documented, not bypassed. See KIOSK_SETUP.md.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        Button(onClick = onDiagnostics, modifier = Modifier.fillMaxWidth()) {
-            Text("Device diagnostics")
+    override fun onResume() {
+        super.onResume()
+        viewModel.refresh()
+    }
+
+    private fun applyBrightness(value: Float) {
+        val params = window.attributes
+        params.screenBrightness = value.coerceIn(0.1f, 1f)
+        window.attributes = params
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
+    private fun restartApp() {
+        val intent = Intent(this, PlayerActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            putExtra(PlayerActivity.EXTRA_FORCE_RELOAD, true)
         }
-        OutlinedButton(onClick = onPlayer, modifier = Modifier.fillMaxWidth()) {
-            Text("Back to player")
-        }
-        Text(
-            "Later: sync now, playlist pin, brightness, exit kiosk (device-owner only).",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        startActivity(intent)
+        Runtime.getRuntime().exit(0)
     }
 }

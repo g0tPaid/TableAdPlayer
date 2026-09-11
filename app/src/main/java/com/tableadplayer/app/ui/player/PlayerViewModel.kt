@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tableadplayer.app.TableAdPlayerApp
+import com.tableadplayer.app.core.crash.Watchdog
 import com.tableadplayer.app.playback.EngineStatus
 import com.tableadplayer.app.playback.PlaybackContent
 import com.tableadplayer.app.playback.PlaylistEngine
@@ -35,8 +36,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     private val _demo = MutableStateFlow(true)
     val demo: StateFlow<Boolean> = _demo.asStateFlow()
 
+    private val _playlistId = MutableStateFlow<String?>(null)
+    val playlistId: StateFlow<String?> = _playlistId.asStateFlow()
+
     init {
         engine.onItemStarted = { item ->
+            Watchdog.noteHealthyPlayback(getApplication())
             viewModelScope.launch(Dispatchers.IO) {
                 runCatching {
                     (getApplication<Application>() as? TableAdPlayerApp)
@@ -46,20 +51,27 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
         }
+        engine.onPlaybackEvent = { event ->
+            val app = getApplication<Application>() as? TableAdPlayerApp
+            val queue = app?.container?.reportingQueue ?: return@onPlaybackEvent
+            val tagged = event.copy(playlistId = event.playlistId ?: loadedPlaylistId)
+            queue.offer(tagged)
+        }
         reload()
     }
 
-    fun reload() {
+    fun reload(force: Boolean = false) {
         viewModelScope.launch {
             reloadMutex.withLock {
                 val resolved = runCatching { PlaylistResolver.resolve(getApplication()) }
                     .getOrDefault(
                         PlaylistResolver.Resolved(emptyList(), demo = true, playlistId = "demo-local"),
                     )
-                if (resolved.playlistId == loadedPlaylistId && loadedPlaylistId != null) {
+                if (!force && resolved.playlistId == loadedPlaylistId && loadedPlaylistId != null) {
                     return@withLock
                 }
                 loadedPlaylistId = resolved.playlistId
+                _playlistId.value = resolved.playlistId
                 _demo.value = resolved.demo
                 engine.start(resolved.items)
             }

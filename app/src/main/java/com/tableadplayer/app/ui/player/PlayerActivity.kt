@@ -7,8 +7,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tableadplayer.app.TableAdPlayerApp
 import com.tableadplayer.app.core.crash.CrashGuard
+import com.tableadplayer.app.core.crash.Watchdog
 import com.tableadplayer.app.core.immersive.ImmersiveKiosk
+import com.tableadplayer.app.kiosk.PlayerWatchdogService
 import com.tableadplayer.app.ui.admin.AdminActivity
 import com.tableadplayer.app.ui.diagnostics.DiagnosticsActivity
 import com.tableadplayer.app.ui.theme.TableAdTheme
@@ -20,11 +23,13 @@ class PlayerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        if (CrashGuard.inSafeMode(this)) {
+        (application as? TableAdPlayerApp)?.initRuntime()
+        if (CrashGuard.inSafeMode(this) || !Watchdog.allowPlayerStart(this)) {
             startActivity(Intent(this, DiagnosticsActivity::class.java))
             finish()
             return
         }
+        PlayerWatchdogService.start(this, fromBoot = false)
         ImmersiveKiosk.apply(this)
         setContent {
             TableAdTheme {
@@ -41,6 +46,17 @@ class PlayerActivity : ComponentActivity() {
                 )
             }
         }
+        if (intent.getBooleanExtra(EXTRA_FORCE_RELOAD, false)) {
+            viewModel.reload(force = true)
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra(EXTRA_FORCE_RELOAD, false)) {
+            viewModel.reload(force = true)
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -52,5 +68,9 @@ class PlayerActivity : ComponentActivity() {
         super.onResume()
         ImmersiveKiosk.apply(this)
         viewModel.reload()
+    }
+
+    companion object {
+        const val EXTRA_FORCE_RELOAD = "force_reload"
     }
 }
