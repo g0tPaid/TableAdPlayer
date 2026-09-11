@@ -3,7 +3,6 @@ package com.tableadplayer.app.kiosk
 import android.app.Activity
 import android.app.ActivityManager
 import android.app.admin.DevicePolicyManager
-import android.os.Build
 
 /**
  * Lock Task exit is a Device Policy Controller decision. This app never
@@ -11,13 +10,9 @@ import android.os.Build
  */
 object LockTaskGate {
     fun inLockTask(activity: Activity): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            activity.isInLockTaskMode
-        } else {
-            @Suppress("DEPRECATION")
-            val am = activity.getSystemService(Activity.ACTIVITY_SERVICE) as? ActivityManager
-            am?.isInLockTaskMode == true
-        }
+        val am = activity.getSystemService(Activity.ACTIVITY_SERVICE) as? ActivityManager
+            ?: return false
+        return am.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_NONE
     }
 
     fun isLockTaskPermitted(activity: Activity): Boolean {

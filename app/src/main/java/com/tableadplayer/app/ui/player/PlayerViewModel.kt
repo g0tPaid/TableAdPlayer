@@ -53,9 +53,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
         engine.onPlaybackEvent = { event ->
             val app = getApplication<Application>() as? TableAdPlayerApp
-            val queue = app?.container?.reportingQueue ?: return@onPlaybackEvent
-            val tagged = event.copy(playlistId = event.playlistId ?: loadedPlaylistId)
-            queue.offer(tagged)
+            val queue = app?.container?.reportingQueue
+            if (queue != null) {
+                queue.offer(event.copy(playlistId = event.playlistId ?: loadedPlaylistId))
+            }
         }
         reload()
     }
