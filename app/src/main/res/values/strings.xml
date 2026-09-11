@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TableAdPlayer</string>
+    <string name="diagnostics_title">Device Diagnostics</string>
+    <string name="diagnostics_debug_label">TableAd Diagnostics</string>
+    <string name="debug_entry_label">TableAd Debug</string>
+    <string name="admin_title">Admin</string>
+    <string name="export_diagnostics">Export JSON</string>
+    <string name="refresh">Refresh</string>
+    <string name="safe_mode_banner">Safe mode: playback paused after repeated crashes. Diagnose the device, then Retry player.</string>
+    <string name="retry_player">Retry player</string>
+    <string name="export_saved">Saved %1$s</string>
+    <string name="export_failed">Export failed: %1$s</string>
+    <string name="admin_hint">Long-press the top-left corner on the player to open this shell.</string>
+    <string name="open_diagnostics">Device diagnostics</string>
+    <string name="open_player">Back to player</string>
+    <string name="demo_mode">DEMO MODE</string>
+    <string name="lock_task_note">Lock Task / device-owner is documented, not bypassed. See KIOSK_SETUP.md.</string>
+</resources>

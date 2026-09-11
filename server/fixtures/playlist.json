@@ -1,0 +1,13 @@
+{
+  "playlistId": "demo-local",
+  "revision": 1,
+  "items": [
+    {
+      "id": "welcome",
+      "type": "image",
+      "url": "https://api.example.invalid/media/welcome.png",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "durationMs": 5000
+    }
+  ]
+}
