@@ -48,6 +48,11 @@ data class RemoteMediaDto(
     val durationMs: Long? = null,
     val startAt: String? = null,
     val endAt: String? = null,
+    val startDate: String? = null,
+    val endDate: String? = null,
+    val startTime: String? = null,
+    val endTime: String? = null,
+    val daysOfWeek: String? = null,
 )
 
 @Serializable

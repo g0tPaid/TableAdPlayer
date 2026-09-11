@@ -23,6 +23,15 @@ Safe mode after repeated crashes. Open diagnostics, confirm storage/media, tap *
 - DEMO assets missing from the APK (`assets/demo/`)
 - ExoPlayer codec missing for a future remote file — engine should skip; file a bug if it hangs > 15 minutes (video cap)
 - Safe mode (above)
+- Cached remote item is not `READY` (Phase 6): engine must skip, not freeze
+
+## Cache grew or leftover `*.part` files
+
+Media lives under `files/media/`. Incomplete downloads use `*.part` and are deleted on app start / `SyncWorker` unless they belong to a DOWNLOADING row on the **active** playlist. Cleanup never removes media required by that playlist. Pull with:
+
+```bash
+adb shell run-as com.tableadplayer.app.debug ls files/media
+```
 
 ## Wi‑Fi SSID is blank
 

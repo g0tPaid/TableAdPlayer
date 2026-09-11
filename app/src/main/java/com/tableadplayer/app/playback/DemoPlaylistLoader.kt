@@ -2,6 +2,9 @@ package com.tableadplayer.app.playback
 
 import android.content.Context
 import com.tableadplayer.app.core.json.AppJson
+import com.tableadplayer.app.scheduler.ScheduleParser
+import com.tableadplayer.app.scheduler.ScheduleWindow
+import java.time.ZoneId
 
 object DemoPlaylistLoader {
     private const val MANIFEST = "demo/playlist.json"
@@ -18,9 +21,22 @@ object DemoPlaylistLoader {
             PlaylistItem(
                 id = dto.id,
                 kind = kind,
-                assetPath = dto.path,
+                source = MediaSource.Asset(dto.path),
                 durationMs = dto.durationMs ?: if (kind == MediaKind.IMAGE) 5_000L else null,
+                schedule = scheduleOf(dto),
             )
         }
+    }
+
+    private fun scheduleOf(dto: PlaylistItemDto): ScheduleWindow? {
+        val window = ScheduleWindow(
+            startDate = ScheduleParser.parseDate(dto.startDate),
+            endDate = ScheduleParser.parseDate(dto.endDate),
+            startTime = ScheduleParser.parseTime(dto.startTime),
+            endTime = ScheduleParser.parseTime(dto.endTime),
+            daysOfWeek = ScheduleParser.parseDaysOfWeek(dto.daysOfWeek),
+            zone = ZoneId.of("UTC"),
+        )
+        return window.takeUnless { it.isUnconstrained }
     }
 }

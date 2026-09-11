@@ -3,13 +3,16 @@ package com.tableadplayer.app.ui.player
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.tableadplayer.app.TableAdPlayerApp
 import com.tableadplayer.app.playback.DemoPlaylistLoader
 import com.tableadplayer.app.playback.EngineStatus
 import com.tableadplayer.app.playback.PlaybackContent
 import com.tableadplayer.app.playback.PlaylistEngine
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class PlayerViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -24,6 +27,16 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val exoPlayer = engine.player
 
     init {
+        engine.onItemStarted = { item ->
+            viewModelScope.launch(Dispatchers.IO) {
+                runCatching {
+                    (getApplication<Application>() as? TableAdPlayerApp)
+                        ?.container
+                        ?.mediaCache
+                        ?.markAccessed(item.id)
+                }
+            }
+        }
         val items = runCatching { DemoPlaylistLoader.load(application) }.getOrDefault(emptyList())
         engine.start(items)
     }

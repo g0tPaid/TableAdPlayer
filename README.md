@@ -10,7 +10,9 @@ This repository does not depend on any other product repo. A public site may be 
 | --- | --- |
 | 1 Project + Device Diagnostics + JSON export | **Complete** |
 | 2 DEMO MODE local immersive playlist player | **Complete** |
-| 3–10 Room, scheduler, sync, reporting, kiosk hardening, admin, tests | Scaffolded — see [DEVELOPMENT.md](DEVELOPMENT.md) |
+| 3 Room + app-private media cache | **Complete** |
+| 4 Offline scheduler | **Complete** |
+| 5–10 API, sync downloads, reporting drain, kiosk, admin, instrumented tests | Scaffolded — see [DEVELOPMENT.md](DEVELOPMENT.md) |
 
 `applicationId`: `com.tableadplayer.app`  
 Debug APK: `app/build/outputs/apk/debug/app-debug.apk`  
