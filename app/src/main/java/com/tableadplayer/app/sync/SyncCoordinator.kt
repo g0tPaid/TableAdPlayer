@@ -10,6 +10,7 @@ import com.tableadplayer.app.data.remote.ApiOrigin
 import com.tableadplayer.app.data.remote.HeartbeatDto
 import com.tableadplayer.app.data.repo.ContentRepository
 import com.tableadplayer.app.data.repo.DeviceRepository
+import com.tableadplayer.app.data.repo.DrainResult
 import com.tableadplayer.app.data.repo.ReportingRepository
 import com.tableadplayer.app.data.repo.SyncOutcome
 import com.tableadplayer.app.data.seed.DemoPlaylistSeeder
@@ -37,7 +38,8 @@ class SyncCoordinator(
         val registered = devices.ensureRegistered()
         devices.fetchAndStoreConfig()
         enqueueHeartbeat()
-        val drained = reporting.drainHeartbeats()
+        val drainedHb = runCatching { reporting.drainHeartbeats() }.getOrDefault(DrainResult(0, 0, 0))
+        val drainedEv = runCatching { reporting.drainPlaybackEvents() }.getOrDefault(DrainResult(0, 0, 0))
 
         val live = ApiOrigin.usesLiveNetwork(baseUrl)
         val playlistResult = content.currentPlaylist()
@@ -71,7 +73,8 @@ class SyncCoordinator(
             downloadsSucceeded = downloadsSucceeded,
             downloadsSkippedLowSpace = skippedLowSpace,
             pinSwapped = pinSwapped,
-            heartbeatsDrained = drained.uploaded,
+            heartbeatsDrained = drainedHb.uploaded,
+            eventsDrained = drainedEv.uploaded,
             error = error,
         )
     }

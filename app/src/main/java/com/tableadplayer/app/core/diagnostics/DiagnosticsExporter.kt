@@ -12,11 +12,15 @@ import kotlinx.coroutines.withContext
 class DiagnosticsExporter(private val context: Context) {
 
     suspend fun writeJson(snapshot: DiagnosticsSnapshot): File = withContext(Dispatchers.IO) {
+        writeNamed("diagnostics", snapshot.deviceId, AppJson.pretty.encodeToString(DiagnosticsSnapshot.serializer(), snapshot))
+    }
+
+    suspend fun writeNamed(prefix: String, deviceId: String, json: String): File = withContext(Dispatchers.IO) {
         val dir = File(context.filesDir, "exports").apply { mkdirs() }
         val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
-        val safeId = snapshot.deviceId.replace(Regex("[^A-Za-z0-9_-]"), "")
-        val file = File(dir, "diagnostics-$safeId-$stamp.json")
-        file.writeText(AppJson.pretty.encodeToString(DiagnosticsSnapshot.serializer(), snapshot))
+        val safeId = deviceId.replace(Regex("[^A-Za-z0-9_-]"), "").ifBlank { "device" }
+        val file = File(dir, "$prefix-$safeId-$stamp.json")
+        file.writeText(json)
         file
     }
 }

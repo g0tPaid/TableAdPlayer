@@ -104,4 +104,20 @@ class MediaCleanupPolicyTest {
         )
         assertTrue(plan.mediaIdsToDelete.isEmpty())
     }
+
+    @Test
+    fun aggressiveClearStillProtectsActivePlaylist() {
+        val plan = MediaCleanupPolicy.plan(
+            media = listOf(
+                media("pin", MediaState.READY, fileSize = 9_000L),
+                media("orphan", MediaState.READY, fileSize = 100L, lastAccessedAt = now),
+            ),
+            activePlaylistMediaIds = setOf("pin"),
+            nowMs = now,
+            maxReadyBytes = 0L,
+            unusedTtlMs = 0L,
+        )
+        assertFalse("pin" in plan.mediaIdsToDelete)
+        assertTrue("orphan" in plan.mediaIdsToDelete)
+    }
 }

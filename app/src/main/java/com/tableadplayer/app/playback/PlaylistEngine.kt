@@ -7,6 +7,9 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.tableadplayer.app.data.local.PlaybackEventType
+import com.tableadplayer.app.reporting.PlaybackReporting
+import com.tableadplayer.app.reporting.QueuedEvent
 import com.tableadplayer.app.scheduler.ScheduleEvaluator
 import java.io.File
 import java.time.ZonedDateTime
@@ -42,6 +45,12 @@ class PlaylistEngine(
     private var loopJob: Job? = null
 
     var onItemStarted: (PlaylistItem) -> Unit = {}
+
+    /**
+     * Non-suspending telemetry sink. The engine never waits on this callback;
+     * exceptions are swallowed. Typical sink: [com.tableadplayer.app.reporting.ReportingQueue.offer].
+     */
+    var onPlaybackEvent: (QueuedEvent) -> Unit = {}
 
     private val _content = MutableStateFlow<PlaybackContent>(PlaybackContent.Idle)
     val content: StateFlow<PlaybackContent> = _content.asStateFlow()
@@ -82,6 +91,7 @@ class PlaylistEngine(
                 }
                 val item = items[index]
                 if (!ScheduleEvaluator.isActive(item.schedule, clock())) {
+                    emitEvent(PlaybackEventType.SKIP, item, "outside_schedule")
                     index = PlaylistAdvance.nextIndex(index, items.size)
                     if (index == 0) loopCount += 1
                     continue
@@ -91,16 +101,21 @@ class PlaylistEngine(
                     waitingRetry = false,
                     loopCount = loopCount,
                 )
-                onItemStarted(item)
-                val ok = playItem(item)
-                if (ok) {
+                runCatching { onItemStarted(item) }
+                emitEvent(PlaybackEventType.PLAY, item)
+                val outcome = playItem(item)
+                if (outcome is PlayOutcome.Played) {
                     consecutiveFailures = 0
+                    emitEvent(PlaybackEventType.COMPLETED, item)
                 } else {
+                    val reason = (outcome as? PlayOutcome.Failed)?.reason ?: "skipped"
                     consecutiveFailures += 1
                     _status.value = _status.value.copy(
                         skipped = _status.value.skipped + 1,
                         lastError = "Skipped ${item.id}",
                     )
+                    emitEvent(PlaybackEventType.ERROR, item, reason)
+                    emitEvent(PlaybackEventType.SKIP, item, reason)
                 }
                 index = PlaylistAdvance.nextIndex(index, items.size)
                 if (index == 0) loopCount += 1
@@ -115,24 +130,37 @@ class PlaylistEngine(
         _content.value = PlaybackContent.Idle
     }
 
-    private suspend fun playItem(item: PlaylistItem): Boolean {
+    private fun emitEvent(type: String, item: PlaylistItem, detail: String? = null) {
+        PlaybackReporting.emitIsolated(
+            sink = onPlaybackEvent,
+            event = QueuedEvent(
+                type = type,
+                itemId = item.id,
+                atEpochMs = System.currentTimeMillis(),
+                detail = detail,
+            ),
+        )
+    }
+
+    private suspend fun playItem(item: PlaylistItem): PlayOutcome {
         return when (item.kind) {
             MediaKind.IMAGE -> playImage(item)
             MediaKind.VIDEO -> playVideo(item)
         }
     }
 
-    private suspend fun playImage(item: PlaylistItem): Boolean {
+    private suspend fun playImage(item: PlaylistItem): PlayOutcome {
         val bytes = withContext(Dispatchers.IO) { readBytes(item.source) }
-        if (bytes == null || bytes.isEmpty()) return false
+        if (bytes == null || bytes.isEmpty()) return PlayOutcome.Failed("unreadable")
         _content.value = PlaybackContent.Image(item, bytes)
         val duration = (item.durationMs ?: 5_000L).coerceAtLeast(500L)
         delay(duration)
-        return true
+        return PlayOutcome.Played
     }
 
-    private suspend fun playVideo(item: PlaylistItem): Boolean {
-        val uri = withContext(Dispatchers.IO) { videoUri(item.source) } ?: return false
+    private suspend fun playVideo(item: PlaylistItem): PlayOutcome {
+        val uri = withContext(Dispatchers.IO) { videoUri(item.source) }
+            ?: return PlayOutcome.Failed("missing_uri")
 
         val exo = withContext(Dispatchers.Main) {
             ExoPlayer.Builder(context).build().also { player ->
@@ -150,7 +178,11 @@ class PlaylistEngine(
             val completed = withTimeoutOrNull(PlaylistAdvance.VIDEO_MAX_MS) {
                 awaitVideoTerminal(exo)
             }
-            completed == true
+            when (completed) {
+                true -> PlayOutcome.Played
+                false -> PlayOutcome.Failed("player_error")
+                null -> PlayOutcome.Failed("timeout")
+            }
         } finally {
             withContext(NonCancellable + Dispatchers.Main) { releasePlayer() }
         }

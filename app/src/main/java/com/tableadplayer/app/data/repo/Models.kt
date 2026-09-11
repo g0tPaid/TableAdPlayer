@@ -28,5 +28,6 @@ data class SyncOutcome(
     val downloadsSkippedLowSpace: Int = 0,
     val pinSwapped: Boolean = false,
     val heartbeatsDrained: Int = 0,
+    val eventsDrained: Int = 0,
     val error: String? = null,
 )

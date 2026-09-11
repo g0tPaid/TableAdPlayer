@@ -11,6 +11,7 @@ object AppConfigKeys {
     const val SERVER_URL = "server_url"
     const val LAST_HEARTBEAT_AT = "last_heartbeat_at"
     const val FREE_SPACE_RESERVE_BYTES = "free_space_reserve_bytes"
+    const val SCREEN_BRIGHTNESS = "screen_brightness"
 }
 
 object DeviceStatus {
@@ -20,6 +21,10 @@ object DeviceStatus {
 
 object PlaybackEventType {
     const val HEARTBEAT = "heartbeat"
+    const val PLAY = "play"
+    const val SKIP = "skip"
+    const val ERROR = "error"
+    const val COMPLETED = "completed"
 }
 
 object MediaOrigin {

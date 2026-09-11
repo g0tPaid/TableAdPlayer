@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tableadplayer.app.TableAdPlayerApp
 import com.tableadplayer.app.ui.player.PlayerActivity
 import com.tableadplayer.app.ui.theme.TableAdTheme
 import java.io.File
@@ -30,6 +31,7 @@ class DiagnosticsActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        (application as? TableAdPlayerApp)?.initRuntime()
         setContent {
             TableAdTheme {
                 val state = viewModel.state.collectAsStateWithLifecycle().value
