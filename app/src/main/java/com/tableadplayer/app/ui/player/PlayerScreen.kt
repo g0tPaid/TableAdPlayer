@@ -84,6 +84,9 @@ fun PlayerScreen(
                                 view.player = exoPlayer
                             }
                         },
+                        onRelease = { view ->
+                            view.player = null
+                        },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }

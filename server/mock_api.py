@@ -10,15 +10,17 @@ so a debug build can complete Phase 5–6 against a local origin:
 
 from __future__ import annotations
 
+import argparse
 import json
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(__file__).resolve().parent / "fixtures"
 MEDIA = ROOT / "media"
-HOST = "0.0.0.0"
-PORT = 8787
+DEFAULT_HOST = os.environ.get("TAP_MOCK_HOST", "0.0.0.0")
+DEFAULT_PORT = int(os.environ.get("TAP_MOCK_PORT", "8787"))
 
 
 def load(name: str) -> bytes:
@@ -129,9 +131,18 @@ class Handler(BaseHTTPRequestHandler):
             self._json(404, {"ok": False, "error": "not_found"})
 
 
-def main() -> None:
-    httpd = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f"TableAdPlayer mock API on http://{HOST}:{PORT}/")
+def make_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> ThreadingHTTPServer:
+    return ThreadingHTTPServer((host, port), Handler)
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="TableAdPlayer mock API")
+    parser.add_argument("--host", default=DEFAULT_HOST)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    args = parser.parse_args(argv)
+    httpd = make_server(args.host, args.port)
+    bound = httpd.server_address
+    print(f"TableAdPlayer mock API on http://{bound[0]}:{bound[1]}/")
     httpd.serve_forever()
 
 

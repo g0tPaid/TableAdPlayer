@@ -17,10 +17,11 @@ This repository does not depend on any other product repo. A public site may be 
 | 7 Reporting drain (play/skip/error/completed), never blocks playlist | **Complete** |
 | 8 Boot FGS + Watchdog / CrashGuard, OEM docs | **Complete** |
 | 9 Admin service menu (Device / Player / Sync / Diagnostics / Controls) | **Complete** |
-| 10 Instrumented tests, mock contract tests, R8 | Leftover — see [DEVELOPMENT.md](DEVELOPMENT.md) |
+| 10 Unit + mock contract tests, androidTest stubs, R8 release | **Complete** |
 
-`applicationId`: `com.tableadplayer.app`  
+`applicationId`: `com.tableadplayer.app` (debug suffix `.debug`)  
 Debug APK: `app/build/outputs/apk/debug/app-debug.apk`  
+Release APK: `app/build/outputs/apk/release/app-release.apk` (R8 minify; **debug-keystore signed** unless you pass `RELEASE_STORE_FILE`)  
 Persistent device id: `TABLE-xxxxxxxx`
 
 ## Requirements
@@ -55,12 +56,15 @@ Release has a single player launcher. Long-press the **top-left** corner of the 
 
 ```bash
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
-./gradlew assembleDebug
+./gradlew assembleDebug testDebugUnitTest
 # APK: app/build/outputs/apk/debug/app-debug.apk
 ```
 
+Release (R8 + resource shrink; signed with the Android **debug** keystore unless you set `RELEASE_STORE_*`):
+
 ```bash
-./gradlew testDebugUnitTest
+./gradlew assembleRelease
+# APK: app/build/outputs/apk/release/app-release.apk
 ```
 
 Override the REST origin **without** hard-coding a production CDN:
@@ -71,11 +75,33 @@ Override the REST origin **without** hard-coding a production CDN:
 
 Or set `API_BASE_URL` in `gradle.properties`. Default is `https://api.example.invalid/`. Never commit `https://ad.cnszfyd.cn`.
 
-## Install on a tablet
+### Point at the LAN mock server
+
+```bash
+python3 server/mock_api.py          # 0.0.0.0:8787
+./scripts/smoke-mock-api.sh         # optional contract smoke
+# Emulator:
+./gradlew assembleDebug -PAPI_BASE_URL=http://10.0.2.2:8787/
+# Physical tablet on the same LAN:
+./gradlew assembleDebug -PAPI_BASE_URL=http://192.168.1.10:8787/
+```
+
+Debug `network_security_config` allows cleartext HTTP. Release does not — use HTTPS or a debug APK for the mock.
+
+## Install on an ~8" tablet
+
+Debug (three launchers, DEMO MODE):
 
 ```bash
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n com.tableadplayer.app.debug/com.tableadplayer.app.ui.player.PlayerActivity
+```
+
+Release (single player launcher, still DEMO MODE, R8):
+
+```bash
+adb install -r app/build/outputs/apk/release/app-release.apk
+adb shell am start -n com.tableadplayer.app/com.tableadplayer.app.ui.player.PlayerActivity
 ```
 
 Portrait, sticky immersive, keep-screen-on. Sample playlist is in `app/src/main/assets/demo/` (images with durations, one video to end, one **intentionally missing** item to prove skip).

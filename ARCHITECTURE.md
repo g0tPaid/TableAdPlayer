@@ -103,10 +103,14 @@ Placeholder origin never downloads; DEMO `demo-local` stays pinned. Offline devi
 
 Long-press top-left opens a dark service menu (Device / Player / Sync / Diagnostics / Controls) sized for 800×1280 portrait. Cache clear still respects the active-playlist pin.
 
+## Tests / release (Phase 10)
+
+Unit tests cover sync/download/cache/registration policy. Mock fixtures are deserialized in JVM tests and served by `server/mock_api.py`. Instrumented tests are stubs (`TESTING.md`); CI has no emulator. Release builds minify with R8 (`app/proguard-rules.pro`) and sign with the debug keystore by default.
+
 ## Threading
 
 - Playlist loop: `viewModelScope` (main) with IO for asset / file reads.
-- ExoPlayer created/released on main.
+- ExoPlayer created/released on main (`AtomicReference`; `stop()` / video `finally` are idempotent). `PlayerView` unbinds in Compose `onRelease`.
 - Room and cache: IO dispatcher (`TableAdPlayerApp` appScope, `SyncWorker`).
 - Sync/reporting: WorkManager / background dispatchers only.
 

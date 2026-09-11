@@ -62,3 +62,35 @@ The share sheet may have no targets on a locked-down kiosk. The file is still un
 ```bash
 adb shell run-as com.tableadplayer.app.debug ls files/exports
 ```
+
+## Release APK will not install (`INSTALL_PARSE_FAILED_NO_CERTIFICATES`)
+
+`assembleRelease` signs with `~/.android/debug.keystore` (password `android`, alias `androiddebugkey`) unless you pass `RELEASE_STORE_FILE`. Generate a debug keystore by building a debug APK once, or:
+
+```bash
+keytool -genkeypair -v -keystore ~/.android/debug.keystore -storepass android \
+  -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 \
+  -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+```
+
+This is **not** a Play Store key. Mapping file after R8: `app/build/outputs/mapping/release/mapping.txt`.
+
+## `assembleRelease` / R8 fails with missing classes
+
+Keep rules live in `app/proguard-rules.pro` (Retrofit, Room, kotlinx.serialization, Media3, WorkManager). If a new `@Serializable` DTO is added under another package, extend the keep glob or keep that class.
+
+## ExoPlayer / memory (remaining risks)
+
+`PlaylistEngine.stop()` and `PlayerViewModel.onCleared()` release ExoPlayer on the main thread (idempotent `AtomicReference`). `PlayerView` unbinds in Compose `onRelease`. Remaining risks that are **not** fully eliminated in this process:
+
+- OEM codec / `MediaCodec` native leaks after a skip storm (engine still advances; watch `adb shell dumpsys meminfo`)
+- WorkManager + OkHttp dispatcher threads live for the process lifetime (expected)
+- `PlayerWatchdogService` FGS until the process dies — tap the notification or force-stop if you need a clean shutdown
+- Compose `remember` of decoded image bitmaps holds RAM for the current slide only
+- No LeakCanary in CI; run it locally on a debug APK if you suspect an Activity leak after long-press admin → back
+
+Reporting / sync failures must not retain ExoPlayer. If a video keeps playing after Admin → Restart player, file a bug against `PlaylistEngine.releasePlayer`.
+
+## Instrumented tests skip in this repo's CI
+
+There is no emulator or tablet attached in GitHub Actions / Cloud Agent CI. `connectedDebugAndroidTest` is a local command. `assembleDebugAndroidTest` only proves the test APK compiles.

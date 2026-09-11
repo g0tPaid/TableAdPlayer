@@ -1,12 +1,78 @@
 # Testing
 
-## Unit (Phase 1–9)
+CI / this repo has **no on-device farm**. Unit tests and the mock-API contract run on the JVM/Python. Instrumented tests compile (`assembleDebugAndroidTest`) and run only when you attach a tablet or emulator.
+
+## Unit (Phase 1–10)
 
 ```bash
 ./gradlew assembleDebug testDebugUnitTest
 ```
 
-Covers device-id formatting, playlist wrap/backoff, sync backoff, media states, atomic file writes, cache cleanup (never drops the active playlist), the offline scheduler, API origin/fixture registration, device auth headers, pin-swap, free-space reserve, heartbeat outbox policy, **reporting queue drain / failure isolation**, watchdog restart policy, and Lock Task exit gating.
+Covers device-id formatting, playlist wrap/backoff, sync backoff, **SyncCoordinator download/pin/DEMO policy**, media states, atomic file writes, **MediaCache readiness / stale `*.part` / enqueue**, cache cleanup (never drops the active playlist), the offline scheduler, API origin/fixture registration, **DeviceRepository registration + utcNow**, device auth headers, pin-swap, free-space reserve, heartbeat outbox policy, reporting queue drain / failure isolation, watchdog restart policy, Lock Task exit gating, and **mock fixture / Retrofit contract** tests against `server/fixtures`.
+
+## Mock API contract
+
+Fixtures live in `server/fixtures/` (must stay in sync with `app/src/main/assets/fixtures/`). The mock process is `python3 server/mock_api.py`.
+
+```bash
+# JVM: kotlinx.serialization + Retrofit against the same JSON the mock serves
+./gradlew testDebugUnitTest --tests com.tableadplayer.app.data.remote.MockApiFixtureContractTest --tests com.tableadplayer.app.data.remote.MockApiRetrofitContractTest
+
+# Python: live HTTP against mock_api.Handler (ephemeral port)
+python3 -m unittest discover -s server -p 'test_*.py'
+
+# Shell smoke (starts mock, curls register/config/playlist/heartbeat/events)
+./scripts/smoke-mock-api.sh
+```
+
+Point a **debug** APK at the mock (release forbids cleartext):
+
+```bash
+python3 server/mock_api.py
+./gradlew assembleDebug -PAPI_BASE_URL=http://10.0.2.2:8787/   # emulator
+# Physical tablet: use the PC's LAN IP, e.g. http://192.168.1.10:8787/
+```
+
+## Instrumented (needs a device)
+
+Scaffolding compiles without an emulator:
+
+```bash
+./gradlew assembleDebugAndroidTest
+# APK: app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+```
+
+On a tablet or AVD:
+
+```bash
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+./gradlew connectedDebugAndroidTest
+```
+
+Stubs:
+
+| Class | What it checks |
+| --- | --- |
+| `DebugPackageInstrumentedTest` | debug `applicationId` |
+| `PlayerActivityInstrumentedTest` | player (or CrashGuard diagnostics) starts |
+| `AdminActivityInstrumentedTest` | admin service menu resumes |
+| `TableAdDatabaseInstrumentedTest` | in-memory Room schema + active-playlist media ids |
+| `PlayerScreenComposeTest` | idle chrome + DEMO badge |
+
+There is **no** automated skip-through of the DEMO video on CI (no emulator in this environment). Do that manually below.
+
+### 800×1280 emulator (optional)
+
+```bash
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+sdkmanager --install "system-images;android-36;default;x86_64"
+avdmanager create avd -n tablet8 --force \
+  -k "system-images;android-36;default;x86_64" \
+  -d "7in WSVGA (Tablet)"
+emulator -avd tablet8 -skin 800x1280 -no-snapshot -no-audio
+```
+
+AOSP/`default` images are enough — the app does not need Play Services. Google APIs images also work.
 
 ## Manual — diagnostics (Phase 1)
 
@@ -57,10 +123,24 @@ Unit tests cover windows. On-device: an item with `endDate` in the past is skipp
 1. 800×1280 portrait: fat buttons, Device / Player / Sync / Diagnostics / Controls.
 2. Sync now, export logs/diagnostics, clear cache (DEMO/active pin still plays), reload playlist, restart player.
 
-## Leftover (Phase 10)
+## Release / R8 (Phase 10)
 
-- Instrumented Compose tests on an 800×1280 emulator AVD
-- Mock API contract tests
-- R8 keep rules for release
+```bash
+./gradlew assembleRelease
+# mapping: app/build/outputs/mapping/release/mapping.txt
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
+Default signing is the Android **debug** keystore (`~/.android/debug.keystore`). For a real key:
+
+```bash
+./gradlew assembleRelease \
+  -PRELEASE_STORE_FILE=/path/to/upload.jks \
+  -PRELEASE_STORE_PASSWORD=... \
+  -PRELEASE_KEY_ALIAS=... \
+  -PRELEASE_KEY_PASSWORD=...
+```
+
+Confirm DEMO MODE still loops on the release APK with airplane mode (placeholder origin, no production CDN).
 
 There is no Play Services test lab dependency.

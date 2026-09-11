@@ -52,7 +52,7 @@ class SyncCoordinator(
 
         if (dto != null) {
             fetched = true
-            if (live) {
+            if (shouldDownloadFromOrigin(live, playlistFetched = true)) {
                 val timezone = db.appConfigDao().getValue(AppConfigKeys.TIMEZONE) ?: "UTC"
                 ingestor.persistPending(dto, timezone)
                 val drain = drainDownloads(dto.playlistId, dto.items.map { it.id }.toSet())
@@ -64,8 +64,11 @@ class SyncCoordinator(
         }
 
         cache.cleanup()
-        val error = playlistResult.exceptionOrNull()?.message
-            ?: if (!registered.isRegistered && live) "unregistered" else null
+        val error = outcomeError(
+            playlistError = playlistResult.exceptionOrNull()?.message,
+            registered = registered.isRegistered,
+            live = live,
+        )
         return SyncOutcome(
             registered = registered.isRegistered,
             playlistFetched = fetched,
@@ -107,9 +110,15 @@ class SyncCoordinator(
             ?: FreeSpacePolicy.DEFAULT_RESERVE_BYTES
 
         for (job in due) {
-            val mediaId = job.mediaId ?: continue
-            val media = db.mediaDao().get(mediaId) ?: continue
-            val essential = mediaId in requiredIds || job.playlistId == playlistId
+            val mediaId = job.mediaId
+            if (DownloadJobPolicy.skipMissingMediaId(mediaId)) continue
+            val media = db.mediaDao().get(mediaId!!) ?: continue
+            val essential = DownloadJobPolicy.isEssential(
+                mediaId = mediaId,
+                requiredIds = requiredIds,
+                jobPlaylistId = job.playlistId,
+                playlistId = playlistId,
+            )
             attempted += 1
             db.syncJobDao().updateStatus(
                 id = job.id,
@@ -121,50 +130,17 @@ class SyncCoordinator(
             )
             val result = downloader.download(media, essential)
             val attempts = job.attempts + 1
-            when (result) {
-                MediaDownloader.Result.Success -> {
-                    succeeded += 1
-                    db.syncJobDao().updateStatus(
-                        id = job.id,
-                        status = SyncJobStatus.SUCCESS,
-                        error = null,
-                        attempts = attempts,
-                        updatedAt = clock(),
-                        nextAttemptAt = null,
-                    )
-                }
-                MediaDownloader.Result.SkippedLowSpace -> {
-                    skippedLowSpace += 1
-                    db.syncJobDao().updateStatus(
-                        id = job.id,
-                        status = SyncJobStatus.PENDING,
-                        error = "low space (reserve=$reserve)",
-                        attempts = attempts,
-                        updatedAt = clock(),
-                        nextAttemptAt = clock() + Backoff.delayMs(attempts),
-                    )
-                }
-                MediaDownloader.Result.SkippedPlaceholder -> {
-                    db.syncJobDao().updateStatus(
-                        id = job.id,
-                        status = SyncJobStatus.FAILED,
-                        error = "placeholder origin",
-                        attempts = attempts,
-                        updatedAt = clock(),
-                        nextAttemptAt = null,
-                    )
-                }
-                is MediaDownloader.Result.Failed -> {
-                    db.syncJobDao().updateStatus(
-                        id = job.id,
-                        status = SyncJobStatus.PENDING,
-                        error = result.reason,
-                        attempts = attempts,
-                        updatedAt = clock(),
-                        nextAttemptAt = clock() + Backoff.delayMs(attempts),
-                    )
-                }
-            }
+            val transition = DownloadJobPolicy.after(result, attempts, clock(), reserve)
+            succeeded += transition.successDelta
+            skippedLowSpace += transition.lowSpaceDelta
+            db.syncJobDao().updateStatus(
+                id = job.id,
+                status = transition.status,
+                error = transition.error,
+                attempts = attempts,
+                updatedAt = clock(),
+                nextAttemptAt = transition.nextAttemptAt,
+            )
         }
         return DownloadDrain(attempted, succeeded, skippedLowSpace)
     }
@@ -179,6 +155,15 @@ class SyncCoordinator(
         /** Keep DEMO pin unless a fully READY remote playlist replaced it. */
         fun shouldKeepDemoPin(activePlaylistId: String?, pinSwapped: Boolean): Boolean {
             return !pinSwapped && (activePlaylistId == null || activePlaylistId == DemoPlaylistSeeder.PLAYLIST_ID)
+        }
+
+        /** Placeholder origin never downloads; live origin does when a DTO arrived. */
+        fun shouldDownloadFromOrigin(live: Boolean, playlistFetched: Boolean): Boolean {
+            return live && playlistFetched
+        }
+
+        fun outcomeError(playlistError: String?, registered: Boolean, live: Boolean): String? {
+            return playlistError ?: if (!registered && live) "unregistered" else null
         }
     }
 }

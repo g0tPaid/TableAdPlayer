@@ -23,21 +23,15 @@ class MediaDownloader(
     }
 
     suspend fun download(media: MediaEntity, essential: Boolean): Result {
-        if (ApiOrigin.isPlaceholder(baseUrl)) {
-            return Result.SkippedPlaceholder
-        }
-        val free = freeSpace.usable()
-        if (!FreeSpacePolicy.allowDownload(free, essential, reserveBytes())) {
-            return Result.SkippedLowSpace
-        }
-        val rawUrl = media.remoteUrl
-        if (rawUrl.isBlank()) {
-            return Result.Failed("missing url")
-        }
-        val url = ApiOrigin.resolveMediaUrl(baseUrl, rawUrl)
-        if (ApiOrigin.isPlaceholder(url)) {
-            return Result.SkippedPlaceholder
-        }
+        val skipped = MediaDownloadPolicy.preflight(
+            baseUrl = baseUrl,
+            remoteUrl = media.remoteUrl,
+            freeBytes = freeSpace.usable(),
+            essential = essential,
+            reserveBytes = reserveBytes(),
+        )
+        if (skipped != null) return skipped
+        val url = ApiOrigin.resolveMediaUrl(baseUrl, media.remoteUrl)
         return withContext(Dispatchers.IO) {
             runCatching {
                 val request = Request.Builder().url(url).get().build()
