@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.TableAdPlayer" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@color/kiosk_navy</item>
+        <item name="android:navigationBarColor">@color/kiosk_black</item>
+        <item name="android:windowBackground">@color/kiosk_black</item>
+        <item name="android:colorBackground">@color/kiosk_black</item>
+    </style>
+
+    <style name="Theme.TableAdPlayer.Immersive" parent="Theme.TableAdPlayer">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>

@@ -1,0 +1,6 @@
+{
+  "deviceId": "TABLE-abcd1234",
+  "timezone": "UTC",
+  "heartbeatIntervalSec": 60,
+  "syncIntervalSec": 300
+}

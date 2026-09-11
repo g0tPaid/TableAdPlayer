@@ -1,0 +1,33 @@
+{
+  "items": [
+    {
+      "id": "welcome",
+      "type": "image",
+      "path": "demo/slides/welcome.png",
+      "durationMs": 5000
+    },
+    {
+      "id": "video-loop",
+      "type": "video",
+      "path": "demo/videos/sample.mp4"
+    },
+    {
+      "id": "admin-hint",
+      "type": "image",
+      "path": "demo/slides/admin.png",
+      "durationMs": 4000
+    },
+    {
+      "id": "offline",
+      "type": "image",
+      "path": "demo/slides/offline.png",
+      "durationMs": 4000
+    },
+    {
+      "id": "missing-on-purpose",
+      "type": "image",
+      "path": "demo/slides/does-not-exist.png",
+      "durationMs": 2000
+    }
+  ]
+}
