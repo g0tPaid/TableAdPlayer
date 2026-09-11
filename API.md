@@ -32,7 +32,8 @@ Each playlist item should include:
 - `id`, `type` (`image` \| `video`), `url`
 - `sha256` (hex) for atomic download verification
 - `durationMs` for images
-- optional `startAt` / `endAt` for local scheduling
+- optional `startAt` / `endAt` (ISO-8601) for simple bounds
+- optional schedule (evaluated **on device**, Phase 4): `startDate`, `endDate` (`yyyy-MM-dd`), `startTime`, `endTime` (`HH:mm`), `daysOfWeek` (ISO `1=Mon … 7=Sun`, e.g. `"1,2,3,4,5"`). Omitted / empty = play normally.
 
 The player must ignore unknown fields (`ignoreUnknownKeys = true`).
 
